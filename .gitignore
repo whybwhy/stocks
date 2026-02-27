@@ -1,0 +1,29 @@
+# Build
+/build
+!**/src/main/**/build/
+!**/src/test/**/build/
+.gradle
+out
+
+# IDE
+.idea
+*.iml
+*.ipr
+*.iws
+.vscode
+*.swp
+*.swo
+
+# Local config (secrets)
+application-local.yml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Spring Boot
+bin/

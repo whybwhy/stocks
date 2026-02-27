@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>보유 주식 목록</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen flex items-center justify-center">
+<div class="w-full max-w-5xl mx-auto p-6">
+    <h1 class="text-2xl font-bold mb-4 text-slate-800">보유 주식 목록</h1>
+
+    <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+        <table class="min-w-full divide-y divide-slate-200 text-sm">
+            <thead class="bg-slate-50">
+            <tr>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">ID</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">주식명</th>
+                <th class="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">1차 매수 가격</th>
+                <th class="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">2차 매수 가격</th>
+                <th class="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">3차 매수 가격</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">기타 설명</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">생성 시간</th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 bg-white">
+            <tr th:each="s : ${stocks}" class="hover:bg-slate-50">
+                <td class="px-6 py-3 whitespace-nowrap text-slate-700" th:text="${s.id}">1</td>
+                <td class="px-6 py-3 whitespace-nowrap font-medium text-slate-800" th:text="${s.stockName}">삼성전자</td>
+                <td class="px-6 py-3 text-right text-slate-700"
+                    th:text="${s.firstBuyPrice != null ? #numbers.formatDecimal(s.firstBuyPrice, 0, 'NONE', 0, 'NONE') : '-'}">
+                    70000
+                </td>
+                <td class="px-6 py-3 text-right text-slate-700"
+                    th:text="${s.secondBuyPrice != null ? #numbers.formatDecimal(s.secondBuyPrice, 0, 'NONE', 0, 'NONE') : '-'}">
+                    65000
+                </td>
+                <td class="px-6 py-3 text-right text-slate-700"
+                    th:text="${s.thirdBuyPrice != null ? #numbers.formatDecimal(s.thirdBuyPrice, 0, 'NONE', 0, 'NONE') : '-'}">
+                    60000
+                </td>
+                <td class="px-6 py-3 text-slate-700" th:text="${s.description}">설명</td>
+                <td class="px-6 py-3 text-slate-500 text-xs"
+                    th:text="${#temporals.format(s.createdAt, 'yyyy-MM-dd HH:mm')}">
+                    2026-02-27 22:50
+                </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(stocks)}">
+                <td colspan="7" class="px-4 py-6 text-center text-slate-500 text-sm">
+                    데이터가 없습니다.
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>
+

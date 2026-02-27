@@ -1,0 +1,13 @@
+.git
+.gitignore
+.gradle
+build
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/resources/application-local.yml
+*.md
+.idea
+.vscode
+*.iml
+out
+bin
+.DS_Store
