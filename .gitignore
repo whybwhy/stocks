@@ -17,6 +17,9 @@ out
 # Local config (secrets)
 application-local.yml
 
+# SQL (로컬/Supabase 전용, 저장소에는 포함하지 않음)
+src/main/resources/stocks.sql
+
 # OS
 .DS_Store
 Thumbs.db
