@@ -18,3 +18,5 @@
 
 Git 연동 및 Render 배포 절차는 **[DEPLOY.md](DEPLOY.md)** 에 정리되어 있습니다.
 
+docker build -t stocks .
+docker run -p 8080:8080 -e PORT=8080 -e SUPABASE_URL=... -e SUPABASE_ANON_KEY=... stocks

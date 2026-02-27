@@ -1,0 +1,10 @@
+# Render Blueprint - 저장소 연결 시 이 설정으로 Web Service 생성
+# 환경 변수(SUPABASE_URL, SUPABASE_ANON_KEY, KAKAO_CLIENT_ID 등)는 Render 대시보드에서 설정하세요.
+
+services:
+  - type: web
+    name: stocks
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
