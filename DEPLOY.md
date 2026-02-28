@@ -61,21 +61,25 @@ git push -u origin main
 
 배포 시 다음 값들은 **Render 대시보드의 Environment**에서 설정합니다. (코드에 넣지 마세요.)
 
-| 변수명 | 설명 | 예시 |
-|--------|------|------|
-| `SUPABASE_URL` | Supabase 프로젝트 URL | `https://xxxx.supabase.co` |
-| `SUPABASE_ANON_KEY` | Supabase anon key | `eyJ...` |
-| `KAKAO_CLIENT_ID` | 카카오 REST API 키 | |
-| `KAKAO_CLIENT_SECRET` | 카카오 시크릿 | |
-| `KAKAO_REDIRECT_URI` | (선택) 배포 URL 기준 리다이렉트 URI | `https://your-app.onrender.com/login/oauth2/code/kakao` |
+| 변수명 | 설명 | Render 예시 | 로컬 |
+|--------|------|--------------|------|
+| `SUPABASE_URL` | Supabase 프로젝트 URL | `https://xxxx.supabase.co` | application-local.yml |
+| `SUPABASE_ANON_KEY` | Supabase anon key | (대시보드에서 설정) | application-local.yml |
+| `KAKAO_CLIENT_ID` | 카카오 REST API 키 | (대시보드에서 설정) | application-local.yml |
+| `KAKAO_CLIENT_SECRET` | 카카오 시크릿 | (대시보드에서 설정) | application-local.yml |
+| `KAKAO_REDIRECT_URI` | 카카오 리다이렉트 URI | **Render**: `https://stocks-ser4.onrender.com/login/oauth2/code/kakao` | **설정 안 함** (미설정 시 `{baseUrl}` → `http://localhost:8080/login/oauth2/code/kakao`) |
+
+- **로컬**: `KAKAO_REDIRECT_URI`를 넣지 않으면 기본값 `{baseUrl}/login/oauth2/code/kakao`가 사용되고, Spring이 `baseUrl`을 `http://localhost:8080`으로 채웁니다.
+- **Render**: Environment에 `KAKAO_REDIRECT_URI=https://stocks-ser4.onrender.com/login/oauth2/code/kakao` 를 반드시 설정하세요.
 
 ### 3.2 카카오 개발자 콘솔 설정
 
 1. https://developers.kakao.com → **내 애플리케이션**
 2. 해당 앱 → **앱 설정** → **플랫폼** → **Web**
-   - **사이트 도메인**: `https://your-app.onrender.com` (Render 배포 후 확정된 URL로 변경)
-3. **카카오 로그인** → **Redirect URI**에 다음 추가:
-   - `https://your-app.onrender.com/login/oauth2/code/kakao`
+   - **사이트 도메인**: 로컬 `http://localhost:8080`, Render `https://stocks-ser4.onrender.com` 둘 다 등록
+3. **카카오 로그인** → **Redirect URI**에 다음 **둘 다** 추가:
+   - `http://localhost:8080/login/oauth2/code/kakao`
+   - `https://stocks-ser4.onrender.com/login/oauth2/code/kakao`
 
 배포 전에는 Render에서 할당될 URL을 모를 수 있으므로, 첫 배포 후 URL을 확인한 뒤 위 항목을 수정해도 됩니다.
 
@@ -107,11 +111,7 @@ git push -u origin main
 | `SUPABASE_ANON_KEY` | Supabase Project Settings → API → anon public |
 | `KAKAO_CLIENT_ID` | 카카오 REST API 키 |
 | `KAKAO_CLIENT_SECRET` | 카카오 Client Secret |
-| `KAKAO_REDIRECT_URI` | `https://<서비스이름>.onrender.com/login/oauth2/code/kakao` |
-
-서비스 이름을 `stocks`로 만들었다면:
-
-- `KAKAO_REDIRECT_URI` = `https://stocks.onrender.com/login/oauth2/code/kakao`
+| `KAKAO_REDIRECT_URI` | `https://stocks-ser4.onrender.com/login/oauth2/code/kakao` |
 
 ### 4.4 빌드·실행 설정 (Docker 사용 시)
 
