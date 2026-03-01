@@ -32,5 +32,12 @@ public class StockViewController {
         model.addAttribute("stocks", supabaseService.getStocks());
         return "stocks/list";
     }
+
+    /** 로그인 없이 주식 목록 조회용. 운영에서는 경로 변경 또는 제거 권장. */
+    @GetMapping("/admin/stocks")
+    public String stocksAdmin(Model model) {
+        model.addAttribute("stocks", supabaseService.getStocks());
+        return "stocks/list";
+    }
 }
 

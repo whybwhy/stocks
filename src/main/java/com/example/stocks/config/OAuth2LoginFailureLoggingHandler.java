@@ -24,7 +24,11 @@ public class OAuth2LoginFailureLoggingHandler extends SimpleUrlAuthenticationFai
     @Override
     public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response,
                                         AuthenticationException exception) throws IOException, ServletException {
-        log.warn("[OAuth2 로그인 실패] message={}, cause={}",
+        String remoteAddr = request.getRemoteAddr();
+        String userAgent = request.getHeader("User-Agent");
+        log.warn("[OAuth2 로그인 실패] remoteAddr={}, userAgent={}, message={}, cause={}",
+                remoteAddr,
+                userAgent != null ? userAgent : "",
                 exception.getMessage(),
                 exception.getCause() != null ? exception.getCause().getMessage() : null);
 

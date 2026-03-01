@@ -3,7 +3,9 @@ package com.example.stocks.supabase;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.math.BigDecimal;
+import java.text.NumberFormat;
 import java.time.OffsetDateTime;
+import java.util.Locale;
 
 public class StockDto {
 
@@ -80,6 +82,29 @@ public class StockDto {
 
     public void setCreatedAt(OffsetDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    /** 원화 기준: 천 단위 콤마(,) + '원' 표기. 노출용. */
+    public String getFirstBuyPriceFormatted() {
+        return formatPriceWon(firstBuyPrice);
+    }
+
+    public String getSecondBuyPriceFormatted() {
+        return formatPriceWon(secondBuyPrice);
+    }
+
+    public String getThirdBuyPriceFormatted() {
+        return formatPriceWon(thirdBuyPrice);
+    }
+
+    private static String formatPriceWon(BigDecimal price) {
+        if (price == null) return "-";
+        NumberFormat nf = NumberFormat.getNumberInstance(Locale.US);
+        nf.setGroupingUsed(true);
+        nf.setMinimumFractionDigits(0);
+        nf.setMaximumFractionDigits(0);
+        //return nf.format(price) + "원";
+        return nf.format(price);
     }
 }
 
