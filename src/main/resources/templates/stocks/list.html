@@ -7,7 +7,10 @@
 </head>
 <body class="bg-slate-100 min-h-screen flex items-center justify-center">
 <div class="w-full max-w-5xl mx-auto p-6">
-    <h1 class="text-2xl font-bold mb-4 text-slate-800">보유 주식 목록</h1>
+    <div class="flex justify-between items-center mb-4">
+        <h1 class="text-2xl font-bold text-slate-800">보유 주식 목록</h1>
+        <a href="/logout" class="text-sm text-slate-500 hover:text-slate-700 underline">로그아웃</a>
+    </div>
 
     <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
         <table class="min-w-full divide-y divide-slate-200 text-sm">
@@ -27,15 +30,15 @@
                 <td class="px-6 py-3 whitespace-nowrap text-slate-700" th:text="${s.id}">1</td>
                 <td class="px-6 py-3 whitespace-nowrap font-medium text-slate-800" th:text="${s.stockName}">삼성전자</td>
                 <td class="px-6 py-3 text-right text-slate-700"
-                    th:text="${s.firstBuyPrice != null ? #numbers.formatDecimal(s.firstBuyPrice, 1, 'POINT', 0, 'COMMA') : '-'}">
+                    th:text="${s.firstBuyPrice != null ? #numbers.formatDecimal(s.firstBuyPrice, 1, '.', 0, ',') : '-'}">
                     70,000
                 </td>
                 <td class="px-6 py-3 text-right text-slate-700"
-                    th:text="${s.secondBuyPrice != null ? #numbers.formatDecimal(s.secondBuyPrice, 1, 'POINT', 0, 'COMMA') : '-'}">
+                    th:text="${s.secondBuyPrice != null ? #numbers.formatDecimal(s.secondBuyPrice, 1, '.', 0, ',') : '-'}">
                     65,000
                 </td>
                 <td class="px-6 py-3 text-right text-slate-700"
-                    th:text="${s.thirdBuyPrice != null ? #numbers.formatDecimal(s.thirdBuyPrice, 1, 'POINT', 0, 'COMMA') : '-'}">
+                    th:text="${s.thirdBuyPrice != null ? #numbers.formatDecimal(s.thirdBuyPrice, 1, '.', 0, ',') : '-'}">
                     60,000
                 </td>
                 <td class="px-6 py-3 text-slate-700" th:text="${s.description}">설명</td>
