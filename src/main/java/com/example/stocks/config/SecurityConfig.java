@@ -20,10 +20,13 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/", "/health").permitAll()
+                        .requestMatchers("/", "/index", "/health").permitAll()
+                        .requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
+                        .loginPage("/")
+                        .failureHandler(new OAuth2LoginFailureLoggingHandler("/?error"))
                         .successHandler(successHandler)
                 )
                 .logout(logout -> logout
