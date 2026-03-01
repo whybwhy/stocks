@@ -30,15 +30,15 @@
                 <td class="px-6 py-3 whitespace-nowrap text-slate-700" th:text="${s.id}">1</td>
                 <td class="px-6 py-3 whitespace-nowrap font-medium text-slate-800" th:text="${s.stockName}">삼성전자</td>
                 <td class="px-6 py-3 text-right text-slate-700"
-                    th:text="${s.firstBuyPrice != null ? #numbers.formatDecimal(s.firstBuyPrice, 1, '.', 0, ',') : '-'}">
+                    th:text="${s.firstBuyPrice != null ? #numbers.formatDecimal(s.firstBuyPrice, 1, 'POINT', 0, 'COMMA') : '-'}">
                     70,000
                 </td>
                 <td class="px-6 py-3 text-right text-slate-700"
-                    th:text="${s.secondBuyPrice != null ? #numbers.formatDecimal(s.secondBuyPrice, 1, '.', 0, ',') : '-'}">
+                    th:text="${s.secondBuyPrice != null ? #numbers.formatDecimal(s.secondBuyPrice, 1, 'POINT', 0, 'COMMA') : '-'}">
                     65,000
                 </td>
                 <td class="px-6 py-3 text-right text-slate-700"
-                    th:text="${s.thirdBuyPrice != null ? #numbers.formatDecimal(s.thirdBuyPrice, 1, '.', 0, ',') : '-'}">
+                    th:text="${s.thirdBuyPrice != null ? #numbers.formatDecimal(s.thirdBuyPrice, 1, 'POINT', 0, 'COMMA') : '-'}">
                     60,000
                 </td>
                 <td class="px-6 py-3 text-slate-700" th:text="${s.description}">설명</td>
