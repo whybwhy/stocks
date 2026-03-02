@@ -2,26 +2,26 @@
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
     <title>간편등록 | 주식 종목 관리</title>
     <link rel="icon" type="image/png" th:href="@{/favicon.png}" href="/favicon.png"/>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-100 min-h-screen">
-<div class="w-full max-w-4xl mx-auto p-6">
-    <div class="flex justify-between items-center mb-6">
-        <div class="flex items-center gap-3">
-            <h1 class="text-2xl font-bold text-slate-800">간편등록</h1>
-            <span id="liveDateTime" class="text-sm text-slate-500"></span>
+<div class="w-full max-w-4xl mx-auto p-4 sm:p-6">
+    <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+            <h1 class="text-xl sm:text-2xl font-bold text-slate-800">간편등록</h1>
+            <span id="liveDateTime" class="text-xs sm:text-sm text-slate-500"></span>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
             <span th:if="${userNickname != null and !userNickname.isEmpty()}" class="text-sm text-slate-600" th:text="${userNickname}">닉네임</span>
             <a th:if="${showLogout}" href="/logout" class="text-sm text-slate-500 hover:text-slate-700 underline">로그아웃</a>
         </div>
     </div>
 
     <form th:action="@{'/' + ${editPathPrefix} + '/' + ${service} + '/quick'}" th:object="${quickForm}" method="post"
-          class="rounded-xl border border-slate-200 bg-white shadow-sm p-6">
+          class="rounded-xl border border-slate-200 bg-white shadow-sm p-4 sm:p-6">
         <p class="text-slate-600 text-sm mb-4">종목, 타입, 섹터, 설명을 입력한 행만 등록됩니다. 비어 있는 행은 무시됩니다.</p>
         <div class="overflow-x-auto">
             <table class="min-w-full border border-slate-200 text-sm">

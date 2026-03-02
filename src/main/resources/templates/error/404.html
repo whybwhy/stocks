@@ -2,15 +2,15 @@
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
     <title>페이지를 찾을 수 없습니다 | 주식 종목 관리</title>
     <link rel="icon" type="image/png" th:href="@{/favicon.png}" href="/favicon.png"/>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center px-4">
     <main class="text-center max-w-lg w-full">
-        <p class="text-6xl font-bold text-slate-600 mb-4">404</p>
-        <h1 class="text-2xl font-bold text-white mb-2">페이지를 찾을 수 없습니다</h1>
+        <p class="text-5xl sm:text-6xl font-bold text-slate-600 mb-4">404</p>
+        <h1 class="text-xl sm:text-2xl font-bold text-white mb-2">페이지를 찾을 수 없습니다</h1>
         <p class="text-slate-400 mb-8">요청하신 주소에 해당하는 페이지가 없거나 이동되었을 수 있습니다.</p>
         <a th:href="@{/}" href="/"
            class="inline-block py-3 px-6 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium transition border border-white/20">

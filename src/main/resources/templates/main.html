@@ -2,7 +2,7 @@
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
     <title>메인 | 주식 종목 관리</title>
     <link rel="icon" type="image/png" th:href="@{/favicon.png}" href="/favicon.png"/>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -14,13 +14,13 @@
     </style>
 </head>
 <body class="bg-slate-100 min-h-screen">
-<div class="w-full max-w-7xl mx-auto p-6">
+<div class="w-full max-w-7xl mx-auto p-4 sm:p-6">
     <!-- GNB -->
-    <div class="flex justify-between items-center mb-6">
-        <div class="flex items-center gap-4">
-            <h1 class="text-2xl font-bold text-slate-800">메인</h1>
-        </div>
+    <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
         <div class="flex items-center gap-3">
+            <h1 class="text-xl sm:text-2xl font-bold text-slate-800">메인</h1>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
             <span th:if="${userNickname != null and !userNickname.isEmpty()}" class="text-sm text-slate-600" th:text="${userNickname}">닉네임</span>
             <a th:if="${showLogout}" href="/logout" class="text-sm text-slate-500 hover:text-slate-700 underline">로그아웃</a>
         </div>

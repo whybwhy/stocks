@@ -2,26 +2,26 @@
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
     <title>주식 등록/수정 (chartboy) | 주식 종목 관리</title>
     <link rel="icon" type="image/png" th:href="@{/favicon.png}" href="/favicon.png"/>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-100 min-h-screen">
-<div class="w-full max-w-2xl mx-auto p-6">
-    <div class="flex justify-between items-center mb-6">
-        <div class="flex items-center gap-3">
-            <h1 class="text-2xl font-bold text-slate-800">chartboy · 주식 등록/수정</h1>
-            <span id="liveDateTime" class="text-sm text-slate-500"></span>
+<div class="w-full max-w-2xl mx-auto p-4 sm:p-6">
+    <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+            <h1 class="text-xl sm:text-2xl font-bold text-slate-800">chartboy · 주식 등록/수정</h1>
+            <span id="liveDateTime" class="text-xs sm:text-sm text-slate-500"></span>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
             <span th:if="${userNickname != null and !userNickname.isEmpty()}" class="text-sm text-slate-600" th:text="${userNickname}">닉네임</span>
             <a th:if="${showLogout}" href="/logout" class="text-sm text-slate-500 hover:text-slate-700 underline">로그아웃</a>
         </div>
     </div>
 
     <form id="editForm" th:action="@{'/' + ${editPathPrefix} + '/' + ${service} + '/edit'}" th:object="${form}" method="post"
-          class="rounded-xl border border-slate-200 bg-white shadow-sm p-6 space-y-4">
+          class="rounded-xl border border-slate-200 bg-white shadow-sm p-4 sm:p-6 space-y-4">
         <input type="hidden" th:field="*{id}" name="id"/>
         <div>
             <label class="block text-sm font-medium text-slate-700 mb-1">종목 <span class="text-blue-500">(필수)</span></label>
@@ -87,7 +87,7 @@
             </div>
         </div>
         <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">계정 <span class="text-blue-500" th:if="${form.id != null}">(원래 작성자)</span><span class="text-blue-500" th:unless="${form.id != null}">(필수)</span></label>
+            <label class="block text-sm font-medium text-slate-700 mb-1">계정 <span class="text-blue-500" th:if="${form.id != null}">(최초 작성자)</span><span class="text-blue-500" th:unless="${form.id != null}">(필수)</span></label>
             <input type="text" th:field="*{account}" name="account" readonly
                    class="w-full rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-slate-700"/>
         </div>

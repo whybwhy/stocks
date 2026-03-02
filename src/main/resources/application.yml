@@ -4,7 +4,8 @@ server:
 spring:
   application:
     name: stocks
-  # 로컬 실행 시 프로파일 미지정이면 local → application-local.yml 이 적용됨. Render 등에서는 SPRING_PROFILES_ACTIVE=prod 등으로 지정.
+  # 로컬 실행 시 프로파일 미지정이면 local → application-local.yml 이 적용됨.
+  # Render 등 운영 환경에서는 반드시 SPRING_PROFILES_ACTIVE=prod 로 설정할 것. 설정 안 하면 기본값 local 이 적용되어 application-local.yml(로컬용 설정)이 로드됨.
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
 
@@ -44,7 +45,7 @@ spring:
 
 # /stock/chartboy 접근 허용 카카오 계정(닉네임). 비어 있으면 모든 인증 사용자 허용. 아래에 추가하면 해당 닉네임만 접근 가능.
 app:
-  allowed-kakao-accounts: ["30_윤보람", "김효진", "bk"]
+  allowed-kakao-accounts: ["30_윤보람", "김효진", "bk", "Yun 보라", "한승우"]
   # allowed-kakao-accounts: [ "닉네임1", "닉네임2" ]
 
 supabase:
