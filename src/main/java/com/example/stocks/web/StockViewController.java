@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.http.HttpHeaders;
@@ -46,7 +47,7 @@ public class StockViewController {
     public String home(Principal principal, Model model,
                        @RequestParam(name = "error", required = false) String error) {
         if (principal != null) {
-            return "redirect:/stocks";
+            return "redirect:/main";
         }
         model.addAttribute("loginError", error);
         return "index";
@@ -54,7 +55,7 @@ public class StockViewController {
 
     private static final int DEFAULT_PAGE_SIZE = 25;
 
-    @GetMapping("/stocks/{service}")
+    @GetMapping("/stock/{service}")
     public String stocks(@PathVariable("service") String service,
                         @RequestParam(name = "page", defaultValue = "1") int page,
                         @RequestParam(name = "size", defaultValue = "25") int size,
@@ -80,12 +81,12 @@ public class StockViewController {
         model.addAttribute("userNickname", resolveKakaoNickname(user));
         model.addAttribute("showLogout", true);
         model.addAttribute("service", service);
-        model.addAttribute("editPathPrefix", "stocks");
-        return "stocks/list";
+        model.addAttribute("editPathPrefix", "stock");
+        return resolveListTemplate(actual);
     }
 
     /** 로그인 없이 주식 목록 조회용. 운영에서는 경로 변경 또는 제거 권장. */
-    @GetMapping("/admin/stocks/{service}")
+    @GetMapping("/admin/stock/{service}")
     public String stocksAdmin(@PathVariable("service") String service,
                               @RequestParam(name = "page", defaultValue = "1") int page,
                               @RequestParam(name = "size", defaultValue = "25") int size,
@@ -112,11 +113,11 @@ public class StockViewController {
         model.addAttribute("userNickname", user != null ? resolveKakaoNickname(user) : null);
         model.addAttribute("showLogout", user != null);
         model.addAttribute("service", service);
-        model.addAttribute("editPathPrefix", "admin/stocks");
-        return "stocks/list";
+        model.addAttribute("editPathPrefix", "admin/stock");
+        return resolveListTemplate(actual);
     }
 
-    @GetMapping("/stocks/{service}/edit")
+    @GetMapping("/stock/{service}/edit")
     public String editForm(@PathVariable("service") String service,
                            @RequestParam(name = "id", required = false) Long id,
                            @AuthenticationPrincipal OAuth2User user,
@@ -128,8 +129,8 @@ public class StockViewController {
             model.addAttribute("userNickname", resolveKakaoNickname(user));
             model.addAttribute("showLogout", true);
             model.addAttribute("service", service);
-            model.addAttribute("editPathPrefix", "stocks");
-            return "stocks/list";
+            model.addAttribute("editPathPrefix", "stock");
+            return resolveListTemplate(null);
         }
         StockEditForm form = new StockEditForm();
         String nickname = resolveKakaoNickname(user);
@@ -161,14 +162,14 @@ public class StockViewController {
         model.addAttribute("form", form);
         model.addAttribute("sectorOptions", sectorOptions);
         model.addAttribute("service", service);
-        model.addAttribute("editPathPrefix", "stocks");
+        model.addAttribute("editPathPrefix", "stock");
         model.addAttribute("userNickname", nickname);
         model.addAttribute("showLogout", true);
         model.addAttribute("today", LocalDate.now(ZoneId.of("Asia/Seoul")));
-        return "stocks/edit";
+        return resolveEditTemplate(actual);
     }
 
-    @GetMapping("/admin/stocks/{service}/edit")
+    @GetMapping("/admin/stock/{service}/edit")
     public String editFormAdmin(@PathVariable("service") String service,
                                 @RequestParam(name = "id", required = false) Long id,
                                 @AuthenticationPrincipal OAuth2User user,
@@ -180,8 +181,8 @@ public class StockViewController {
             model.addAttribute("userNickname", user != null ? resolveKakaoNickname(user) : null);
             model.addAttribute("showLogout", user != null);
             model.addAttribute("service", service);
-            model.addAttribute("editPathPrefix", "admin/stocks");
-            return "stocks/list";
+            model.addAttribute("editPathPrefix", "admin/stock");
+            return resolveListTemplate(null);
         }
         StockEditForm form = new StockEditForm();
         String nickname = user != null ? resolveKakaoNickname(user) : null;
@@ -213,20 +214,156 @@ public class StockViewController {
         model.addAttribute("form", form);
         model.addAttribute("sectorOptions", sectorOptions);
         model.addAttribute("service", service);
-        model.addAttribute("editPathPrefix", "admin/stocks");
+        model.addAttribute("editPathPrefix", "admin/stock");
         model.addAttribute("userNickname", nickname);
         model.addAttribute("showLogout", user != null);
         model.addAttribute("today", LocalDate.now(ZoneId.of("Asia/Seoul")));
-        return "stocks/edit";
+        return resolveEditTemplate(actual);
     }
 
-    @PostMapping("/stocks/{service}/edit")
+    private static final int QUICK_REGISTER_ROW_COUNT = 10;
+
+    @GetMapping("/stock/{service}/quick")
+    public String quickRegisterForm(@PathVariable("service") String service,
+                                    @AuthenticationPrincipal OAuth2User user,
+                                    Model model) {
+        String actual = resolveServiceActual(service);
+        if (actual == null) {
+            model.addAttribute("stocks", List.of());
+            model.addAttribute("today", LocalDate.now(ZoneId.of("Asia/Seoul")));
+            model.addAttribute("userNickname", resolveKakaoNickname(user));
+            model.addAttribute("showLogout", true);
+            model.addAttribute("service", service);
+            model.addAttribute("editPathPrefix", "stock");
+            return resolveListTemplate(null);
+        }
+        QuickRegisterForm form = new QuickRegisterForm();
+        for (int i = 0; i < QUICK_REGISTER_ROW_COUNT; i++) {
+            form.getRows().add(new QuickRegisterRow());
+        }
+        form.setAccount(resolveKakaoNickname(user));
+        model.addAttribute("quickForm", form);
+        model.addAttribute("service", service);
+        model.addAttribute("editPathPrefix", "stock");
+        model.addAttribute("userNickname", form.getAccount());
+        model.addAttribute("showLogout", true);
+        model.addAttribute("today", LocalDate.now(ZoneId.of("Asia/Seoul")));
+        return resolveQuickTemplate(actual);
+    }
+
+    @GetMapping("/admin/stock/{service}/quick")
+    public String quickRegisterFormAdmin(@PathVariable("service") String service,
+                                        @AuthenticationPrincipal OAuth2User user,
+                                        Model model) {
+        String actual = resolveServiceActual(service);
+        if (actual == null) {
+            model.addAttribute("stocks", List.of());
+            model.addAttribute("today", LocalDate.now(ZoneId.of("Asia/Seoul")));
+            model.addAttribute("userNickname", user != null ? resolveKakaoNickname(user) : null);
+            model.addAttribute("showLogout", user != null);
+            model.addAttribute("service", service);
+            model.addAttribute("editPathPrefix", "admin/stock");
+            return resolveListTemplate(null);
+        }
+        QuickRegisterForm form = new QuickRegisterForm();
+        for (int i = 0; i < QUICK_REGISTER_ROW_COUNT; i++) {
+            form.getRows().add(new QuickRegisterRow());
+        }
+        form.setAccount(user != null ? resolveKakaoNickname(user) : null);
+        model.addAttribute("quickForm", form);
+        model.addAttribute("service", service);
+        model.addAttribute("editPathPrefix", "admin/stock");
+        model.addAttribute("userNickname", form.getAccount());
+        model.addAttribute("showLogout", user != null);
+        model.addAttribute("today", LocalDate.now(ZoneId.of("Asia/Seoul")));
+        return resolveQuickTemplate(actual);
+    }
+
+    @PostMapping("/stock/{service}/quick")
+    public String saveQuickRegister(@PathVariable("service") String service,
+                                   @ModelAttribute("quickForm") QuickRegisterForm form,
+                                   @AuthenticationPrincipal OAuth2User user) {
+        String actual = resolveServiceActual(service);
+        if (actual == null) {
+            return "redirect:/stock/chartboy";
+        }
+        String account = form.getAccount() != null && !form.getAccount().isBlank()
+                ? form.getAccount().trim()
+                : (resolveKakaoNickname(user) != null ? resolveKakaoNickname(user) : "");
+        for (QuickRegisterRow row : form.getRows()) {
+            if (row.getStockName() != null && !row.getStockName().isBlank()) {
+                upsertQuickRow(actual, row, account);
+            }
+        }
+        return "redirect:/stock/" + service;
+    }
+
+    @PostMapping("/admin/stock/{service}/quick")
+    public String saveQuickRegisterAdmin(@PathVariable("service") String service,
+                                        @ModelAttribute("quickForm") QuickRegisterForm form,
+                                        @AuthenticationPrincipal OAuth2User user) {
+        String actual = resolveServiceActual(service);
+        if (actual == null) {
+            return "redirect:/admin/stock/" + service;
+        }
+        String account = form.getAccount() != null && !form.getAccount().isBlank()
+                ? form.getAccount().trim()
+                : (user != null ? resolveKakaoNickname(user) : "");
+        for (QuickRegisterRow row : form.getRows()) {
+            if (row.getStockName() != null && !row.getStockName().isBlank()) {
+                upsertQuickRow(actual, row, account);
+            }
+        }
+        return "redirect:/admin/stock/" + service;
+    }
+
+    /** 간편등록 한 행을 DB에 upsert 후 history 저장. */
+    private void upsertQuickRow(String actual, QuickRegisterRow row, String account) {
+        StockDto dto = toDtoFromQuickRow(row, account);
+        String name = row.getStockName() != null ? row.getStockName().trim() : "";
+        StockDto existing = supabaseService.getStockByStockName(actual, name);
+        Long targetId;
+        if (existing != null) {
+            supabaseService.updateStock(actual, existing.getId(), dto);
+            targetId = existing.getId();
+        } else {
+            try {
+                StockDto created = supabaseService.insertStock(actual, dto);
+                targetId = created.getId();
+            } catch (HttpClientErrorException.Conflict e) {
+                List<StockDto> list = supabaseService.getStocksForExport(actual);
+                StockDto found = list.stream()
+                        .filter(s -> name.equals(s.getStockName()))
+                        .findFirst()
+                        .orElse(null);
+                if (found != null) {
+                    supabaseService.updateStock(actual, found.getId(), dto);
+                    targetId = found.getId();
+                } else {
+                    throw e;
+                }
+            }
+        }
+        supabaseService.insertHistory(account != null ? account : "", actual, targetId);
+    }
+
+    private static StockDto toDtoFromQuickRow(QuickRegisterRow row, String account) {
+        StockDto dto = new StockDto();
+        dto.setStockName(row.getStockName() != null ? row.getStockName().trim() : null);
+        dto.setType(row.getType() != null && !row.getType().isBlank() ? row.getType().trim() : "KR");
+        dto.setSector(row.getSector() != null ? row.getSector().trim() : null);
+        dto.setDescription(row.getDescription() != null ? row.getDescription().trim() : null);
+        dto.setAccount(account);
+        return dto;
+    }
+
+    @PostMapping("/stock/{service}/edit")
     public String saveEdit(@PathVariable("service") String service,
                            @ModelAttribute("form") StockEditForm form,
                            @AuthenticationPrincipal OAuth2User user) {
         String actual = resolveServiceActual(service);
         if (actual == null) {
-            return "redirect:/stocks";
+            return "redirect:/stock/chartboy";
         }
         String account = form.getAccount() != null && !form.getAccount().isBlank()
                 ? form.getAccount().trim()
@@ -234,16 +371,16 @@ public class StockViewController {
         StockDto dto = toDto(form, account);
         Long targetId = resolveTargetIdAndUpsert(actual, form, dto);
         supabaseService.insertHistory(account != null ? account : "", actual, targetId);
-        return "redirect:/stocks/" + service;
+        return "redirect:/stock/" + service;
     }
 
-    @PostMapping("/admin/stocks/{service}/edit")
+    @PostMapping("/admin/stock/{service}/edit")
     public String saveEditAdmin(@PathVariable("service") String service,
                                 @ModelAttribute("form") StockEditForm form,
                                 @AuthenticationPrincipal OAuth2User user) {
         String actual = resolveServiceActual(service);
         if (actual == null) {
-            return "redirect:/admin/stocks/" + service;
+            return "redirect:/admin/stock/" + service;
         }
         String account = form.getAccount() != null && !form.getAccount().isBlank()
                 ? form.getAccount().trim()
@@ -251,10 +388,58 @@ public class StockViewController {
         StockDto dto = toDto(form, account);
         Long targetId = resolveTargetIdAndUpsert(actual, form, dto);
         supabaseService.insertHistory(account != null ? account : "", actual, targetId);
-        return "redirect:/admin/stocks/" + service;
+        return "redirect:/admin/stock/" + service;
     }
 
-    @GetMapping("/stocks/{service}/export")
+    @PostMapping("/stock/{service}/delete")
+    public String deleteStock(@PathVariable("service") String service,
+                              @RequestParam("id") Long id,
+                              @AuthenticationPrincipal OAuth2User user,
+                              RedirectAttributes redirectAttributes) {
+        String actual = resolveServiceActual(service);
+        if (actual == null) {
+            return "redirect:/stock/chartboy";
+        }
+        StockDto stock = supabaseService.getStockById(actual, id);
+        if (stock == null) {
+            return "redirect:/stock/" + service;
+        }
+        String currentAccount = resolveKakaoNickname(user);
+        String recordAccount = stock.getAccount() != null ? stock.getAccount().trim() : "";
+        if (currentAccount == null || !currentAccount.trim().equals(recordAccount)) {
+            redirectAttributes.addFlashAttribute("deleteForbidden", true);
+            return "redirect:/stock/" + service + "/edit?id=" + id;
+        }
+        supabaseService.insertHistory(currentAccount != null ? currentAccount : "", actual, id);
+        supabaseService.deleteStock(actual, id);
+        return "redirect:/stock/" + service;
+    }
+
+    @PostMapping("/admin/stock/{service}/delete")
+    public String deleteStockAdmin(@PathVariable("service") String service,
+                                  @RequestParam("id") Long id,
+                                  @AuthenticationPrincipal OAuth2User user,
+                                  RedirectAttributes redirectAttributes) {
+        String actual = resolveServiceActual(service);
+        if (actual == null) {
+            return "redirect:/admin/stock/" + service;
+        }
+        StockDto stock = supabaseService.getStockById(actual, id);
+        if (stock == null) {
+            return "redirect:/admin/stock/" + service;
+        }
+        String currentAccount = user != null ? resolveKakaoNickname(user) : null;
+        String recordAccount = stock.getAccount() != null ? stock.getAccount().trim() : "";
+        if (currentAccount == null || !currentAccount.trim().equals(recordAccount)) {
+            redirectAttributes.addFlashAttribute("deleteForbidden", true);
+            return "redirect:/admin/stock/" + service + "/edit?id=" + id;
+        }
+        supabaseService.insertHistory(currentAccount != null ? currentAccount : "", actual, id);
+        supabaseService.deleteStock(actual, id);
+        return "redirect:/admin/stock/" + service;
+    }
+
+    @GetMapping("/stock/{service}/export")
     public ResponseEntity<byte[]> exportStocks(@PathVariable("service") String service) {
         String actual = resolveServiceActual(service);
         if (actual == null) {
@@ -269,7 +454,7 @@ public class StockViewController {
                 .body(csv);
     }
 
-    @GetMapping("/admin/stocks/{service}/export")
+    @GetMapping("/admin/stock/{service}/export")
     public ResponseEntity<byte[]> exportStocksAdmin(@PathVariable("service") String service) {
         String actual = resolveServiceActual(service);
         if (actual == null) {
@@ -384,6 +569,19 @@ public class StockViewController {
     private static String resolveServiceActual(String service) {
         StockServiceType type = StockServiceType.fromPath(service);
         return type != null ? type.getActualValue() : null;
+    }
+
+    /** chartboy 서비스는 stocks/chartboy/ 하위 템플릿, 그 외는 stocks/ 공통 템플릿. */
+    private static String resolveListTemplate(String actual) {
+        return "chartboy".equals(actual) ? "stocks/chartboy/list" : "stocks/list";
+    }
+
+    private static String resolveEditTemplate(String actual) {
+        return "chartboy".equals(actual) ? "stocks/chartboy/edit" : "stocks/edit";
+    }
+
+    private static String resolveQuickTemplate(String actual) {
+        return "chartboy".equals(actual) ? "stocks/chartboy/quick" : "stocks/quick";
     }
 }
 

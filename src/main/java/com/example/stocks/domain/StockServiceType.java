@@ -2,14 +2,14 @@ package com.example.stocks.domain;
 
 /**
  * 주소(URL)에 들어온 서비스 구분값을 실제 사용할 값으로 매핑하는 enum.
- * 예: /stocks/stock → STOCK(실제값 "주식" 또는 DB용 코드 등)
+ * 예: /stock/chartboy → chartboy 테이블
  */
 public enum StockServiceType {
 
     STOCK("chartboy", "chartboy"),
     FRONTIER("frontier", "frontier");
 
-    /** URL 경로에 들어오는 값 (예: /stocks/stock 의 "stock") */
+    /** URL 경로에 들어오는 값 (예: /stock/chartboy 의 "chartboy") */
     private final String pathValue;
     /** 실제 사용할 값 (DB, 필터, 노출용 등) */
     private final String actualValue;

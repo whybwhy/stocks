@@ -117,6 +117,18 @@ public class SupabaseService {
                 .toBodilessEntity();
     }
 
+    /** id로 행 삭제. */
+    public void deleteStock(String table, Long id) {
+        if (id == null) return;
+        supabaseRestClient.delete()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/rest/v1/" + table)
+                        .queryParam("id", "eq." + id)
+                        .build())
+                .retrieve()
+                .toBodilessEntity();
+    }
+
     /** 이력 저장 (생성/변경 시 호출). */
     public void insertHistory(String account, String targetTable, Long targetId) {
         HistoryDto dto = new HistoryDto();

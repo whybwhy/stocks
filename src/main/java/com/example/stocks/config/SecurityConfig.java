@@ -10,11 +10,17 @@ import org.springframework.security.web.access.intercept.AuthorizationFilter;
 @Configuration
 public class SecurityConfig {
 
+    private final AppProperties appProperties;
+
+    public SecurityConfig(AppProperties appProperties) {
+        this.appProperties = appProperties;
+    }
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         SavedRequestAwareAuthenticationSuccessHandler successHandler =
                 new SavedRequestAwareAuthenticationSuccessHandler();
-        successHandler.setDefaultTargetUrl("/");
+        successHandler.setDefaultTargetUrl("/main");
         successHandler.setAlwaysUseDefaultTargetUrl(false);
 
         http
@@ -22,7 +28,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/index", "/health", "/favicon.png").permitAll()
                         .requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").permitAll()
-                        // /admin 이 포함된 경로는 인증 없이 접근 허용 (예: /admin, /admin/stocks/chartboy)
+                        // /admin 이 포함된 경로는 인증 없이 접근 허용 (예: /admin, /admin/stock/chartboy)
                         .requestMatchers("/admin", "/admin/**").permitAll()
                         .anyRequest().authenticated()
                 )
@@ -37,7 +43,8 @@ public class SecurityConfig {
                         .invalidateHttpSession(true)
                         .deleteCookies("JSESSIONID")
                 )
-                .addFilterBefore(new KakaoAuthLoggingFilter(), AuthorizationFilter.class);
+                .addFilterBefore(new KakaoAuthLoggingFilter(), AuthorizationFilter.class)
+                .addFilterBefore(new ChartboyAccessFilter(appProperties), AuthorizationFilter.class);
 
         return http.build();
     }

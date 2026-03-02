@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>메인 | 주식 종목 관리</title>
+    <link rel="icon" type="image/png" th:href="@{/favicon.png}" href="/favicon.png"/>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .tradingview-widget-container iframe {
+            height: 340px !important;
+            min-height: 340px !important;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen">
+<div class="w-full max-w-7xl mx-auto p-6">
+    <!-- GNB -->
+    <div class="flex justify-between items-center mb-6">
+        <div class="flex items-center gap-4">
+            <h1 class="text-2xl font-bold text-slate-800">메인</h1>
+        </div>
+        <div class="flex items-center gap-3">
+            <span th:if="${userNickname != null and !userNickname.isEmpty()}" class="text-sm text-slate-600" th:text="${userNickname}">닉네임</span>
+            <a th:if="${showLogout}" href="/logout" class="text-sm text-slate-500 hover:text-slate-700 underline">로그아웃</a>
+        </div>
+    </div>
+
+    <!-- 메뉴: /stock/chartboy는 application.yml 허용 계정만 노출 -->
+    <nav class="mb-6 flex flex-wrap items-center gap-2">
+        <a th:if="${showChartboyLink}" href="/stock/chartboy"
+           class="px-4 py-2.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-50 hover:border-slate-300 transition shadow-sm">chartboy</a>
+        <a href="/stock/frontier"
+           class="px-4 py-2.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-50 hover:border-slate-300 transition shadow-sm">frontier</a>
+    </nav>
+
+    <!-- 지수 차트: 카드 높이 = 헤더 + 340px 동일 크기 -->
+    <div class="grid grid-cols-1 gap-4">
+        <!--div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-100 bg-slate-50">
+                <h2 class="text-lg font-semibold text-slate-800">KOSPI (코스피)</h2>
+                <p class="text-xs text-slate-500">한국거래소 코스피 지수</p>
+            </div>
+            <div class="tradingview-widget-container" style="height:680px;">
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+                {
+                    "autosize": true,
+                    "symbol": "KRX:KOSPI",
+                    "interval": "D",
+                    "timezone": "Asia/Seoul",
+                    "theme": "light",
+                    "style": "1",
+                    "locale": "kr",
+                    "allow_symbol_change": false,
+                    "save_image": false,
+                    "backgroundColor": "rgba(255, 255, 255, 1)",
+                    "gridColor": "rgba(240, 243, 250, 1)",
+                    "hide_side_toolbar": false
+                }
+                </script>
+            </div>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-100 bg-slate-50">
+                <h2 class="text-lg font-semibold text-slate-800">NASDAQ (나스닥 종합)</h2>
+                <p class="text-xs text-slate-500">NASDAQ Composite Index</p>
+            </div>
+            <div class="tradingview-widget-container" style="height:680px;">
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+                {
+                    "autosize": true,
+                    "symbol": "NASDAQ:IXIC",
+                    "interval": "D",
+                    "timezone": "Etc/UTC",
+                    "theme": "light",
+                    "style": "1",
+                    "locale": "kr",
+                    "allow_symbol_change": false,
+                    "save_image": false,
+                    "backgroundColor": "rgba(255, 255, 255, 1)",
+                    "gridColor": "rgba(240, 243, 250, 1)",
+                    "hide_side_toolbar": false
+                }
+                </script>
+            </div>
+        </div-->
+        <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col" style="height:396px;">
+            <div class="px-4 py-2.5 border-b border-slate-100 bg-slate-50 flex-shrink-0">
+                <h2 class="text-base font-semibold text-slate-800">S&amp;P 500</h2>
+                <p class="text-xs text-slate-500">미국 S&amp;P 500 지수</p>
+            </div>
+            <div class="tradingview-widget-container flex-1 min-h-0" style="min-height:340px; height:340px; width:100%;">
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+                {
+                    "height": 340,
+                    "autosize": false,
+                    "symbol": "OANDA:SPX500USD",
+                    "interval": "D",
+                    "timezone": "Etc/UTC",
+                    "theme": "light",
+                    "style": "1",
+                    "locale": "kr",
+                    "allow_symbol_change": false,
+                    "save_image": false,
+                    "backgroundColor": "rgba(255, 255, 255, 1)",
+                    "gridColor": "rgba(240, 243, 250, 1)",
+                    "hide_side_toolbar": false
+                }
+                </script>
+            </div>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col" style="height:396px;">
+            <div class="px-4 py-2.5 border-b border-slate-100 bg-slate-50 flex-shrink-0">
+                <h2 class="text-base font-semibold text-slate-800">다우존스 (Dow Jones)</h2>
+                <p class="text-xs text-slate-500">Dow Jones Industrial Average</p>
+            </div>
+            <div class="tradingview-widget-container flex-1 min-h-0" style="min-height:340px; height:340px; width:100%;">
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+                {
+                    "height": 340,
+                    "autosize": false,
+                    "symbol": "OANDA:US30USD",
+                    "interval": "D",
+                    "timezone": "Etc/UTC",
+                    "theme": "light",
+                    "style": "1",
+                    "locale": "kr",
+                    "allow_symbol_change": false,
+                    "save_image": false,
+                    "backgroundColor": "rgba(255, 255, 255, 1)",
+                    "gridColor": "rgba(240, 243, 250, 1)",
+                    "hide_side_toolbar": false
+                }
+                </script>
+            </div>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col" style="height:396px;">
+            <div class="px-4 py-2.5 border-b border-slate-100 bg-slate-50 flex-shrink-0">
+                <h2 class="text-base font-semibold text-slate-800">시장 요약 (Market Overview)</h2>
+                <p class="text-xs text-slate-500">주요 지수 한눈에 보기</p>
+            </div>
+            <div class="tradingview-widget-container flex-1 min-h-0" style="min-height:340px; height:340px; width:100%;">
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-market-overview.js" async>
+                {
+                    "colorTheme": "light",
+                    "dateRange": "1D",
+                    "exchangeTimezone": "Asia/Seoul",
+                    "showChart": true,
+                    "locale": "kr",
+                    "width": "100%",
+                    "height": 340,
+                    "largeChartUrl": "",
+                    "isTransparent": false,
+                    "showSymbolLogo": true,
+                    "showFloatingTooltip": false,
+                    "symbols": [
+                        ["KRX:KOSPI", "KOSPI"],
+                        ["NASDAQ:IXIC", "NASDAQ"],
+                        ["OANDA:SPX500USD", "S&P 500"],
+                        ["OANDA:US30USD", "Dow Jones"],
+                        ["FX:EURUSD", "EUR/USD"],
+                        ["BINANCE:BTCUSDT", "BTC/USDT"]
+                    ],
+                    "plotLineColorFill": "rgba(41, 98, 255, 0.1)",
+                    "gridLineColor": "rgba(240, 243, 250, 1)",
+                    "scaleLineColor": "rgba(240, 243, 250, 1)",
+                    "belowLineFillColor": "rgba(41, 98, 255, 0.05)",
+                    "belowLineFillColorBottom": "rgba(41, 98, 255, 0)"
+                }
+                </script>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

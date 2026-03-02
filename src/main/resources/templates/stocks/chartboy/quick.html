@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>간편등록 (chartboy) | 주식 종목 관리</title>
+    <link rel="icon" type="image/png" th:href="@{/favicon.png}" href="/favicon.png"/>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen">
+<div class="w-full max-w-4xl mx-auto p-6">
+    <div class="flex justify-between items-center mb-6">
+        <div class="flex items-center gap-3">
+            <h1 class="text-2xl font-bold text-slate-800">chartboy · 간편등록</h1>
+            <span id="liveDateTime" class="text-sm text-slate-500"></span>
+        </div>
+        <div class="flex items-center gap-3">
+            <span th:if="${userNickname != null and !userNickname.isEmpty()}" class="text-sm text-slate-600" th:text="${userNickname}">닉네임</span>
+            <a th:if="${showLogout}" href="/logout" class="text-sm text-slate-500 hover:text-slate-700 underline">로그아웃</a>
+        </div>
+    </div>
+
+    <form th:action="@{'/' + ${editPathPrefix} + '/' + ${service} + '/quick'}" th:object="${quickForm}" method="post"
+          class="rounded-xl border border-slate-200 bg-white shadow-sm p-6">
+        <p class="text-slate-600 text-sm mb-4">종목, 타입, 섹터, 설명을 입력한 행만 등록됩니다. 비어 있는 행은 무시됩니다.</p>
+        <div class="overflow-x-auto">
+            <table class="min-w-full border border-slate-200 text-sm">
+                <thead class="bg-slate-50">
+                <tr>
+                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase">종목</th>
+                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase w-20">타입</th>
+                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase">섹터</th>
+                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase">설명</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="row, rowStat : ${quickForm.rows}">
+                    <td class="px-3 py-2 border-t border-slate-100">
+                        <input type="text" th:field="*{rows[__${rowStat.index}__].stockName}"
+                               class="w-full rounded border border-slate-300 px-2 py-1.5 text-slate-800 text-sm"/>
+                    </td>
+                    <td class="px-3 py-2 border-t border-slate-100">
+                        <select th:field="*{rows[__${rowStat.index}__].type}"
+                                class="w-full rounded border border-slate-300 px-2 py-1.5 text-slate-800 text-sm">
+                            <option value="KR">KR</option>
+                            <option value="US">US</option>
+                        </select>
+                    </td>
+                    <td class="px-3 py-2 border-t border-slate-100">
+                        <input type="text" th:field="*{rows[__${rowStat.index}__].sector}"
+                               class="w-full rounded border border-slate-300 px-2 py-1.5 text-slate-800 text-sm"/>
+                    </td>
+                    <td class="px-3 py-2 border-t border-slate-100">
+                        <input type="text" th:field="*{rows[__${rowStat.index}__].description}"
+                               class="w-full rounded border border-slate-300 px-2 py-1.5 text-slate-800 text-sm"/>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-6 pt-4 border-t border-slate-200">
+            <label class="block text-sm font-medium text-slate-700 mb-1">사용자명</label>
+            <input type="text" th:field="${quickForm.account}" name="account" readonly
+                   class="w-full max-w-xs rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-slate-700"/>
+        </div>
+        <div class="flex gap-3 mt-6">
+            <button type="submit" class="px-4 py-2 rounded-lg bg-slate-700 text-white hover:bg-slate-600">등록</button>
+            <a th:href="@{'/' + ${editPathPrefix} + '/' + ${service}}" href="#"
+               class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50">목록</a>
+        </div>
+    </form>
+</div>
+<script>
+(function(){
+  var el = document.getElementById('liveDateTime');
+  if (!el) return;
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function update() {
+    var d = new Date();
+    el.textContent = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  }
+  update();
+  setInterval(update, 1000);
+})();
+</script>
+</body>
+</html>
