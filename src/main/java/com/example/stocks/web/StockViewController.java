@@ -117,6 +117,50 @@ public class StockViewController {
         return resolveListTemplate(actual);
     }
 
+    @GetMapping("/stock/{service}/detail")
+    public String detail(@PathVariable("service") String service,
+                        @RequestParam("id") Long id,
+                        @AuthenticationPrincipal OAuth2User user,
+                        Model model) {
+        String actual = resolveServiceActual(service);
+        if (actual == null) {
+            return "redirect:/stock/chartboy";
+        }
+        StockDto stock = supabaseService.getStockById(actual, id);
+        if (stock == null) {
+            return "redirect:/stock/" + service;
+        }
+        model.addAttribute("stock", stock);
+        model.addAttribute("service", service);
+        model.addAttribute("editPathPrefix", "stock");
+        model.addAttribute("userNickname", resolveKakaoNickname(user));
+        model.addAttribute("showLogout", true);
+        model.addAttribute("today", LocalDate.now(ZoneId.of("Asia/Seoul")));
+        return resolveDetailTemplate(actual);
+    }
+
+    @GetMapping("/admin/stock/{service}/detail")
+    public String detailAdmin(@PathVariable("service") String service,
+                              @RequestParam("id") Long id,
+                              @AuthenticationPrincipal OAuth2User user,
+                              Model model) {
+        String actual = resolveServiceActual(service);
+        if (actual == null) {
+            return "redirect:/admin/stock/" + service;
+        }
+        StockDto stock = supabaseService.getStockById(actual, id);
+        if (stock == null) {
+            return "redirect:/admin/stock/" + service;
+        }
+        model.addAttribute("stock", stock);
+        model.addAttribute("service", service);
+        model.addAttribute("editPathPrefix", "admin/stock");
+        model.addAttribute("userNickname", user != null ? resolveKakaoNickname(user) : null);
+        model.addAttribute("showLogout", user != null);
+        model.addAttribute("today", LocalDate.now(ZoneId.of("Asia/Seoul")));
+        return resolveDetailTemplate(actual);
+    }
+
     @GetMapping("/stock/{service}/edit")
     public String editForm(@PathVariable("service") String service,
                            @RequestParam(name = "id", required = false) Long id,
@@ -582,6 +626,10 @@ public class StockViewController {
 
     private static String resolveQuickTemplate(String actual) {
         return "chartboy".equals(actual) ? "stocks/chartboy/quick" : "stocks/quick";
+    }
+
+    private static String resolveDetailTemplate(String actual) {
+        return "chartboy".equals(actual) ? "stocks/chartboy/detail" : "stocks/detail";
     }
 }
 

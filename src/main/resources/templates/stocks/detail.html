@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+    <title>종목 상세 | 주식 종목 관리</title>
+    <link rel="icon" type="image/png" th:href="@{/favicon.png}" href="/favicon.png"/>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen">
+<div class="w-full max-w-2xl mx-auto p-4 sm:p-6">
+    <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
+        <h1 class="text-xl sm:text-2xl font-bold text-slate-800" th:text="${stock.stockName}">종목명</h1>
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+            <span th:if="${userNickname != null and !userNickname.isEmpty()}" class="text-sm text-slate-600" th:text="${userNickname}">닉네임</span>
+            <a th:if="${showLogout}" href="/logout" class="text-sm text-slate-500 hover:text-slate-700 underline">로그아웃</a>
+        </div>
+    </div>
+
+    <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <dl class="divide-y divide-slate-100">
+            <div class="px-4 sm:px-6 py-3 sm:py-4">
+                <dt class="text-xs font-medium text-slate-500 uppercase tracking-wider">리젼</dt>
+                <dd class="mt-1">
+                    <span th:if="${stock.type != null and !stock.type.isEmpty()}" th:text="${stock.type}"
+                          class="inline-block px-2 py-0.5 rounded border text-sm font-medium"
+                          th:classappend="${stock.type == 'KR'} ? 'border-slate-400 text-slate-700 bg-slate-100' : 'border-slate-400 text-slate-700 bg-slate-50'">KR</span>
+                    <span th:if="${stock.type == null or stock.type.isEmpty()}" class="text-slate-500">-</span>
+                </dd>
+            </div>
+            <div class="px-4 sm:px-6 py-3 sm:py-4">
+                <dt class="text-xs font-medium text-slate-500 uppercase tracking-wider">섹터</dt>
+                <dd class="mt-1 text-sm text-slate-800" th:text="${stock.sector ?: '-'}">-</dd>
+            </div>
+            <div class="px-4 sm:px-6 py-3 sm:py-4">
+                <dt class="text-xs font-medium text-slate-500 uppercase tracking-wider">1차 매수</dt>
+                <dd class="mt-1 text-sm text-slate-800" th:text="${stock.firstBuyPriceFormatted}">-</dd>
+            </div>
+            <div class="px-4 sm:px-6 py-3 sm:py-4">
+                <dt class="text-xs font-medium text-slate-500 uppercase tracking-wider">설명</dt>
+                <dd class="mt-1 text-sm text-slate-800 whitespace-pre-wrap" th:text="${stock.description ?: '-'}">-</dd>
+            </div>
+            <div class="px-4 sm:px-6 py-3 sm:py-4">
+                <dt class="text-xs font-medium text-slate-500 uppercase tracking-wider">계정</dt>
+                <dd class="mt-1 text-sm text-slate-800" th:text="${stock.account ?: '-'}">-</dd>
+            </div>
+            <div class="px-4 sm:px-6 py-3 sm:py-4">
+                <dt class="text-xs font-medium text-slate-500 uppercase tracking-wider">생성일</dt>
+                <dd class="mt-1 text-sm text-slate-600" th:text="${stock.createdAt != null ? #temporals.format(stock.createdAt, 'yyyy-MM-dd HH:mm') : '-'}">-</dd>
+            </div>
+        </dl>
+    </div>
+
+    <div class="mt-6 flex flex-wrap gap-3">
+        <a th:href="@{'/' + ${editPathPrefix} + '/' + ${service} + '/edit?id=' + ${stock.id}}"
+           class="inline-block px-4 py-2.5 rounded-lg bg-slate-700 text-white text-sm font-medium hover:bg-slate-600">수정</a>
+        <a th:href="@{'/' + ${editPathPrefix} + '/' + ${service}}"
+           class="inline-block px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50">목록</a>
+    </div>
+</div>
+</body>
+</html>

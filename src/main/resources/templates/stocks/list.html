@@ -17,7 +17,7 @@
         </div>
         <div class="flex flex-wrap items-center gap-2 sm:gap-3">
             <a th:if="${service != null}" th:href="@{'/' + ${editPathPrefix} + '/' + ${service} + '/export'}" href="#"
-               class="px-3 py-1.5 rounded-lg border border-slate-500 text-slate-700 text-sm hover:bg-slate-100">다운로드</a>
+               class="hidden sm:inline-block px-3 py-1.5 rounded-lg border border-slate-500 text-slate-700 text-sm hover:bg-slate-100">CSV 다운로드</a>
             <a th:if="${service != null}" th:href="@{'/' + ${editPathPrefix} + '/' + ${service} + '/edit'}" href="#"
                class="px-3 py-1.5 rounded-lg bg-slate-700 text-white text-sm hover:bg-slate-600">등록</a>
             <a th:if="${service != null}" th:href="@{'/' + ${editPathPrefix} + '/' + ${service} + '/quick'}" href="#"
@@ -55,7 +55,9 @@
                           class="inline-block px-2 py-0.5 rounded border text-xs font-medium"
                           th:classappend="${s.type == 'KR'} ? 'border-slate-400 text-slate-700 bg-slate-100' : 'border-slate-400 text-slate-700 bg-slate-50'">KR</span>
                 </td>
-                <td class="px-3 sm:px-6 py-2.5 sm:py-3 whitespace-nowrap font-medium text-slate-800" th:text="${s.stockName}">삼성전자</td>
+                <td class="px-3 sm:px-6 py-2.5 sm:py-3 whitespace-nowrap font-medium">
+                    <a th:href="@{'/' + ${editPathPrefix} + '/' + ${service} + '/detail?id=' + ${s.id}}" class="text-slate-800 hover:text-slate-600 hover:underline" th:text="${s.stockName}">삼성전자</a>
+                </td>
                 <td class="px-3 sm:px-6 py-2.5 sm:py-3 whitespace-nowrap text-slate-600 text-xs" th:text="${s.sector}">-</td>
                 <td class="px-3 sm:px-6 py-2.5 sm:py-3 text-right text-slate-700" th:text="${s.firstBuyPriceFormatted}">70,000원</td>
                 <!-- 2차 매수, 3차 매수 주석처리
@@ -86,43 +88,48 @@
             전체 <span th:text="${totalCount}">0</span>건
             <th:block th:if="${totalPages > 1}"> · <span th:text="${currentPage}">1</span> / <span th:text="${totalPages}">1</span> 페이지</th:block>
         </p>
-        <div class="flex items-center gap-2">
-            <span class="text-xs text-slate-500">페이지당</span>
-            <a th:href="@{'/' + ${editPathPrefix} + '/' + ${service} + '?page=1&size=10'}"
-               th:classappend="${pageSize == 10} ? 'bg-slate-200 font-medium' : ''"
-               class="px-2 py-1 rounded text-sm text-slate-700 hover:bg-slate-100">10</a>
-            <a th:href="@{'/' + ${editPathPrefix} + '/' + ${service} + '?page=1&size=25'}"
-               th:classappend="${pageSize == 25} ? 'bg-slate-200 font-medium' : ''"
-               class="px-2 py-1 rounded text-sm text-slate-700 hover:bg-slate-100">25</a>
-            <a th:href="@{'/' + ${editPathPrefix} + '/' + ${service} + '?page=1&size=50'}"
-               th:classappend="${pageSize == 50} ? 'bg-slate-200 font-medium' : ''"
-               class="px-2 py-1 rounded text-sm text-slate-700 hover:bg-slate-100">50</a>
-            <a th:href="@{'/' + ${editPathPrefix} + '/' + ${service} + '?page=1&size=100'}"
-               th:classappend="${pageSize == 100} ? 'bg-slate-200 font-medium' : ''"
-               class="px-2 py-1 rounded text-sm text-slate-700 hover:bg-slate-100">100</a>
-            <span class="text-xs text-slate-500">건</span>
-        </div>
-        <div th:if="${totalPages > 1}" class="flex gap-2">
-            <a th:if="${currentPage > 1}"
-               th:href="@{'/' + ${editPathPrefix} + '/' + ${service} + '?page=' + ${currentPage - 1} + '&size=' + ${pageSize}}"
-               class="px-3 py-1.5 rounded border border-slate-300 text-slate-700 text-sm hover:bg-slate-50">이전</a>
-            <a th:if="${currentPage < totalPages}"
-               th:href="@{'/' + ${editPathPrefix} + '/' + ${service} + '?page=' + ${currentPage + 1} + '&size=' + ${pageSize}}"
-               class="px-3 py-1.5 rounded border border-slate-300 text-slate-700 text-sm hover:bg-slate-50">다음</a>
-        </div>
+        <th:block th:if="${totalPages > 1}">
+            <div class="flex flex-wrap items-center gap-3">
+                <label class="flex items-center gap-2 text-sm text-slate-600">
+                    <span class="text-xs text-slate-500">페이지당</span>
+                    <select th:attr="data-list-url=@{'/' + ${editPathPrefix} + '/' + ${service}}"
+                            class="pageSizeSelect rounded border border-slate-300 px-2 py-1.5 text-sm text-slate-700 bg-white focus:ring-2 focus:ring-slate-400 focus:border-slate-400">
+                        <option th:value="10" th:selected="${pageSize == 10}">10건</option>
+                        <option th:value="25" th:selected="${pageSize == 25}">25건</option>
+                        <option th:value="50" th:selected="${pageSize == 50}">50건</option>
+                        <option th:value="100" th:selected="${pageSize == 100}">100건</option>
+                    </select>
+                </label>
+                <div class="flex gap-2">
+                    <a th:if="${currentPage > 1}"
+                       th:href="@{'/' + ${editPathPrefix} + '/' + ${service} + '?page=' + ${currentPage - 1} + '&size=' + ${pageSize}}"
+                       class="px-3 py-1.5 rounded border border-slate-300 text-slate-700 text-sm hover:bg-slate-50">이전</a>
+                    <a th:if="${currentPage < totalPages}"
+                       th:href="@{'/' + ${editPathPrefix} + '/' + ${service} + '?page=' + ${currentPage + 1} + '&size=' + ${pageSize}}"
+                       class="px-3 py-1.5 rounded border border-slate-300 text-slate-700 text-sm hover:bg-slate-50">다음</a>
+                </div>
+            </div>
+        </th:block>
     </div>
 </div>
 <script>
 (function(){
   var el = document.getElementById('liveDateTime');
-  if (!el) return;
-  function pad(n) { return (n < 10 ? '0' : '') + n; }
-  function update() {
-    var d = new Date();
-    el.textContent = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  if (el) {
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+    function update() {
+      var d = new Date();
+      el.textContent = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+    }
+    update();
+    setInterval(update, 1000);
   }
-  update();
-  setInterval(update, 1000);
+  var sel = document.querySelector('.pageSizeSelect');
+  if (sel && sel.dataset.listUrl) {
+    sel.addEventListener('change', function() {
+      location.href = sel.dataset.listUrl + '?page=1&size=' + this.value;
+    });
+  }
 })();
 </script>
 </body>
