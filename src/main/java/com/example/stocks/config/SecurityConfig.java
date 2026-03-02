@@ -20,8 +20,9 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/", "/index", "/health").permitAll()
+                        .requestMatchers("/", "/index", "/health", "/favicon.png").permitAll()
                         .requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").permitAll()
+                        // /admin 이 포함된 경로는 인증 없이 접근 허용 (예: /admin, /admin/stocks/chartboy)
                         .requestMatchers("/admin", "/admin/**").permitAll()
                         .anyRequest().authenticated()
                 )

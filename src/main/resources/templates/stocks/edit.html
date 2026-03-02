@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>주식 등록/수정 | 주식 매수타점 관리</title>
+    <link rel="icon" type="image/png" th:href="@{/favicon.png}" href="/favicon.png"/>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen">
+<div class="w-full max-w-2xl mx-auto p-6">
+    <div class="flex justify-between items-center mb-6">
+        <div class="flex items-center gap-3">
+            <h1 class="text-2xl font-bold text-slate-800">주식 등록/수정</h1>
+            <span class="text-sm text-slate-500" th:text="${#temporals.format(today, 'yyyy-MM-dd')}">2026-02-27</span>
+        </div>
+        <div class="flex items-center gap-3">
+            <span th:if="${userNickname != null and !userNickname.isEmpty()}" class="text-sm text-slate-600" th:text="${userNickname}">닉네임</span>
+            <a th:if="${showLogout}" href="/logout" class="text-sm text-slate-500 hover:text-slate-700 underline">로그아웃</a>
+        </div>
+    </div>
+
+    <form id="editForm" th:action="@{'/' + ${editPathPrefix} + '/' + ${service} + '/edit'}" th:object="${form}" method="post"
+          class="rounded-xl border border-slate-200 bg-white shadow-sm p-6 space-y-4">
+        <input type="hidden" th:field="*{id}" name="id"/>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">종목 (*)</label>
+            <input type="text" th:field="*{stockName}" name="stockName" id="stockName"
+                   th:readonly="${form.id != null}"
+                   th:classappend="${form.id != null} ? 'border-slate-200 bg-slate-100' : 'border-slate-300 focus:ring-2 focus:ring-slate-400 focus:border-slate-400'"
+                   class="w-full rounded-lg border px-3 py-2 text-slate-800"/>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">1차 매수</label>
+            <input type="text" inputmode="numeric" th:field="*{firstBuyPrice}" name="firstBuyPrice" id="firstBuyPrice"
+                   class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 focus:ring-2 focus:ring-slate-400 focus:border-slate-400" placeholder="숫자만 입력"/>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">2차 매수</label>
+            <input type="text" inputmode="numeric" th:field="*{secondBuyPrice}" name="secondBuyPrice" id="secondBuyPrice"
+                   class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 focus:ring-2 focus:ring-slate-400 focus:border-slate-400" placeholder="숫자만 입력"/>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">3차 매수</label>
+            <input type="text" inputmode="numeric" th:field="*{thirdBuyPrice}" name="thirdBuyPrice" id="thirdBuyPrice"
+                   class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 focus:ring-2 focus:ring-slate-400 focus:border-slate-400" placeholder="숫자만 입력"/>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">기타 설명</label>
+            <textarea th:field="*{description}" name="description" rows="4"
+                   class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 focus:ring-2 focus:ring-slate-400 focus:border-slate-400 resize-y"></textarea>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Type (*)</label>
+            <input type="hidden" th:field="*{type}" name="type" id="typeValue"/>
+            <div class="flex gap-1.5" role="group" aria-label="Type 선택">
+                <button type="button" id="typeKr" data-value="KR"
+                        class="type-btn px-2.5 py-1 rounded border text-sm font-medium transition"
+                        th:classappend="${form.type == 'KR' or form.type == null or form.type.isEmpty()} ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'">
+                    KR
+                </button>
+                <button type="button" id="typeUs" data-value="US"
+                        class="type-btn px-2.5 py-1 rounded border text-sm font-medium transition"
+                        th:classappend="${form.type == 'US'} ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'">
+                    US
+                </button>
+            </div>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Ticker (추후 사용 예정)</label>
+            <input type="text" th:field="*{ticker}" name="ticker"
+                   class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 focus:ring-2 focus:ring-slate-400 focus:border-slate-400"/>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Sector (*)</label>
+            <input type="text" th:field="*{sector}" name="sector" id="sectorInput" required
+                   class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 focus:ring-2 focus:ring-slate-400 focus:border-slate-400"/>
+            <div th:if="${sectorOptions != null and !sectorOptions.isEmpty()}" class="flex flex-wrap gap-1.5 mt-2">
+                <span class="text-xs text-slate-500 self-center mr-1">기존 섹터:</span>
+                <button type="button" th:each="opt : ${sectorOptions}" th:data-sector="${opt}"
+                        class="sector-btn px-2 py-0.5 rounded border border-slate-300 text-slate-700 text-xs hover:bg-slate-100 transition">
+                    <span th:text="${opt}">섹터명</span>
+                </button>
+            </div>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">사용자명 (*)</label>
+            <input type="text" th:field="*{account}" name="account" readonly
+                   class="w-full rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-slate-700"/>
+        </div>
+        <div class="flex gap-3 pt-4">
+            <button type="submit" class="px-4 py-2 rounded-lg bg-slate-700 text-white hover:bg-slate-600">저장</button>
+            <a th:href="@{'/' + ${editPathPrefix} + '/' + ${service}}" href="#"
+               class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50">목록</a>
+        </div>
+    </form>
+</div>
+<script th:inline="javascript">
+(function() {
+    var form = document.getElementById('editForm');
+    var typeValue = document.getElementById('typeValue');
+    var typeKr = document.getElementById('typeKr');
+    var typeUs = document.getElementById('typeUs');
+
+    // (*) 필수 입력 검증
+    function trim(s) { return s == null ? '' : String(s).trim(); }
+    form.addEventListener('submit', function(e) {
+        var stockName = document.getElementById('stockName');
+        var sectorInput = document.getElementById('sectorInput');
+        var account = document.querySelector('input[name="account"]');
+        var err = [];
+        if (!stockName || !trim(stockName.value)) err.push('종목 (*)');
+        if (!typeValue || !trim(typeValue.value)) err.push('Type (*)');
+        if (!sectorInput || !trim(sectorInput.value)) err.push('Sector (*)');
+        if (!account || !trim(account.value)) err.push('사용자명 (*)');
+        if (err.length > 0) {
+            e.preventDefault();
+            alert('다음 필드는 반드시 입력해야 합니다: ' + err.join(', '));
+            return false;
+        }
+    });
+
+    if (typeValue && typeKr && typeUs) {
+        function setType(value) {
+            typeValue.value = value;
+            typeKr.className = 'type-btn px-2.5 py-1 rounded border text-sm font-medium transition ' + (value === 'KR' ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50');
+            typeUs.className = 'type-btn px-2.5 py-1 rounded border text-sm font-medium transition ' + (value === 'US' ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50');
+        }
+        typeKr.addEventListener('click', function() { setType('KR'); });
+        typeUs.addEventListener('click', function() { setType('US'); });
+    }
+    document.querySelectorAll('.sector-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var input = document.getElementById('sectorInput');
+            if (input && this.getAttribute('data-sector')) input.value = this.getAttribute('data-sector');
+        });
+    });
+
+    // 1차/2차/3차 매수: 숫자만 입력
+    ['firstBuyPrice', 'secondBuyPrice', 'thirdBuyPrice'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('input', function() {
+            this.value = this.value.replace(/[^0-9]/g, '');
+        });
+        el.addEventListener('paste', function(e) {
+            e.preventDefault();
+            var text = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '');
+            this.value = (this.value || '').slice(0, this.selectionStart) + text + (this.value || '').slice(this.selectionEnd);
+        });
+    });
+})();
+</script>
+</body>
+</html>

@@ -2,14 +2,27 @@
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8"/>
-    <title>보유 주식 목록</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>매수타점 목록 | 주식 매수타점 관리</title>
+    <link rel="icon" type="image/png" th:href="@{/favicon.png}" href="/favicon.png"/>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-100 min-h-screen flex items-center justify-center">
-<div class="w-full max-w-5xl mx-auto p-6">
+<body class="bg-slate-100 min-h-screen">
+<div class="w-full max-w-7xl mx-auto p-6">
+    <!-- GNB -->
     <div class="flex justify-between items-center mb-4">
-        <h1 class="text-2xl font-bold text-slate-800">보유 주식 목록</h1>
-        <a href="/logout" class="text-sm text-slate-500 hover:text-slate-700 underline">로그아웃</a>
+        <div class="flex items-center gap-3">
+            <h1 class="text-2xl font-bold text-slate-800">주식종목</h1>
+            <span class="text-sm text-slate-500" th:text="${#temporals.format(today, 'yyyy-MM-dd')}">2026-02-27</span>
+        </div>
+        <div class="flex items-center gap-3">
+            <a th:if="${service != null}" th:href="@{'/' + ${editPathPrefix} + '/' + ${service} + '/export'}" href="#"
+               class="px-3 py-1.5 rounded-lg border border-slate-500 text-slate-700 text-sm hover:bg-slate-100">CSV 다운로드</a>
+            <a th:if="${service != null}" th:href="@{'/' + ${editPathPrefix} + '/' + ${service} + '/edit'}" href="#"
+               class="px-3 py-1.5 rounded-lg bg-slate-700 text-white text-sm hover:bg-slate-600">등록</a>
+            <span th:if="${userNickname != null and !userNickname.isEmpty()}" class="text-sm text-slate-600" th:text="${userNickname}">닉네임</span>
+            <a th:if="${showLogout}" href="/logout" class="text-sm text-slate-500 hover:text-slate-700 underline">로그아웃</a>
+        </div>
     </div>
 
     <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -17,34 +30,77 @@
             <thead class="bg-slate-50">
             <tr>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">ID</th>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">주식명</th>
-                <th class="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">1차 매수 가격</th>
-                <th class="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">2차 매수 가격</th>
-                <th class="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">3차 매수 가격</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Type</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">종목</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Sector</th>
+                <th class="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">1차 매수</th>
+                <th class="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">2차 매수</th>
+                <th class="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">3차 매수</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">기타 설명</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">생성 시간</th>
+                <th class="px-2 py-4 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider w-14">수정</th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100 bg-white">
             <tr th:each="s : ${stocks}" class="hover:bg-slate-50">
                 <td class="px-6 py-3 whitespace-nowrap text-slate-700" th:text="${s.id}">1</td>
+                <td class="px-6 py-3 whitespace-nowrap">
+                    <span th:if="${s.type != null and !s.type.isEmpty()}" th:text="${s.type}"
+                          class="inline-block px-2 py-0.5 rounded border text-xs font-medium"
+                          th:classappend="${s.type == 'KR'} ? 'border-slate-400 text-slate-700 bg-slate-100' : 'border-slate-400 text-slate-700 bg-slate-50'">KR</span>
+                </td>
                 <td class="px-6 py-3 whitespace-nowrap font-medium text-slate-800" th:text="${s.stockName}">삼성전자</td>
+                <td class="px-6 py-3 whitespace-nowrap text-slate-600 text-xs" th:text="${s.sector}">-</td>
                 <td class="px-6 py-3 text-right text-slate-700" th:text="${s.firstBuyPriceFormatted}">70,000원</td>
                 <td class="px-6 py-3 text-right text-slate-700" th:text="${s.secondBuyPriceFormatted}">65,000원</td>
                 <td class="px-6 py-3 text-right text-slate-700" th:text="${s.thirdBuyPriceFormatted}">60,000원</td>
                 <td class="px-6 py-3 text-slate-700" th:text="${s.description}">설명</td>
                 <td class="px-6 py-3 text-slate-500 text-xs"
-                    th:text="${#temporals.format(s.createdAt, 'yyyy-MM-dd HH:mm')}">
-                    2026-02-27 22:50
+                    th:text="${#temporals.format(s.createdAt, 'yyyy-MM-dd')}">
+                </td>
+                <td class="px-2 py-3 text-center whitespace-nowrap w-14">
+                    <a th:if="${editPathPrefix == 'admin/stocks' or showLogout}"
+                       th:href="${'/' + editPathPrefix + '/' + service + '/edit?id=' + s.id}"
+                       class="text-xs px-1.5 py-0.5 rounded border border-slate-300 text-slate-600 hover:bg-slate-100">수정</a>
                 </td>
             </tr>
             <tr th:if="${#lists.isEmpty(stocks)}">
-                <td colspan="7" class="px-4 py-6 text-center text-slate-500 text-sm">
+                <td colspan="10" class="px-4 py-6 text-center text-slate-500 text-sm">
                     데이터가 없습니다.
                 </td>
             </tr>
             </tbody>
         </table>
+    </div>
+    <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <p class="text-sm text-slate-500">
+            전체 <span th:text="${totalCount}">0</span>건
+            <th:block th:if="${totalPages > 1}"> · <span th:text="${currentPage}">1</span> / <span th:text="${totalPages}">1</span> 페이지</th:block>
+        </p>
+        <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-500">페이지당</span>
+            <a th:href="@{'/' + ${editPathPrefix} + '/' + ${service} + '?page=1&size=10'}"
+               th:classappend="${pageSize == 10} ? 'bg-slate-200 font-medium' : ''"
+               class="px-2 py-1 rounded text-sm text-slate-700 hover:bg-slate-100">10</a>
+            <a th:href="@{'/' + ${editPathPrefix} + '/' + ${service} + '?page=1&size=25'}"
+               th:classappend="${pageSize == 25} ? 'bg-slate-200 font-medium' : ''"
+               class="px-2 py-1 rounded text-sm text-slate-700 hover:bg-slate-100">25</a>
+            <a th:href="@{'/' + ${editPathPrefix} + '/' + ${service} + '?page=1&size=50'}"
+               th:classappend="${pageSize == 50} ? 'bg-slate-200 font-medium' : ''"
+               class="px-2 py-1 rounded text-sm text-slate-700 hover:bg-slate-100">50</a>
+            <a th:href="@{'/' + ${editPathPrefix} + '/' + ${service} + '?page=1&size=100'}"
+               th:classappend="${pageSize == 100} ? 'bg-slate-200 font-medium' : ''"
+               class="px-2 py-1 rounded text-sm text-slate-700 hover:bg-slate-100">100</a>
+            <span class="text-xs text-slate-500">건</span>
+        </div>
+        <div th:if="${totalPages > 1}" class="flex gap-2">
+            <a th:if="${currentPage > 1}"
+               th:href="@{'/' + ${editPathPrefix} + '/' + ${service} + '?page=' + ${currentPage - 1} + '&size=' + ${pageSize}}"
+               class="px-3 py-1.5 rounded border border-slate-300 text-slate-700 text-sm hover:bg-slate-50">이전</a>
+            <a th:if="${currentPage < totalPages}"
+               th:href="@{'/' + ${editPathPrefix} + '/' + ${service} + '?page=' + ${currentPage + 1} + '&size=' + ${pageSize}}"
+               class="px-3 py-1.5 rounded border border-slate-300 text-slate-700 text-sm hover:bg-slate-50">다음</a>
+        </div>
     </div>
 </div>
 </body>

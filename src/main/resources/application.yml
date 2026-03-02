@@ -13,6 +13,12 @@ spring:
 
   mvc:
     time-zone: Asia/Seoul
+    # 매핑되지 않은 URL 요청 시 NoHandlerFoundException 발생 → 404 페이지 출력
+    throw-exception-if-no-handler-found: true
+  web:
+    resources:
+      # 기본 /** 정적 매핑 비활성화 → 없는 경로는 NoHandlerFoundException으로 404 페이지 표시
+      add-mappings: false
 
   security:
     oauth2:

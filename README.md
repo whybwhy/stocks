@@ -1,4 +1,6 @@
-# stocks - Spring Boot + Kakao OAuth2 + Supabase
+# stocks – 주식 종목 매수타점 관리 서비스
+
+Spring Boot + Kakao OAuth2 + Supabase 기반으로, 관심 종목의 1·2·3차 매수 가격(매수타점)과 메모를 기록·조회합니다.
 
 ## 로컬 실행 방법
 
