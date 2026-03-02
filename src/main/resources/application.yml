@@ -44,7 +44,7 @@ spring:
 
 # /stock/chartboy 접근 허용 카카오 계정(닉네임). 비어 있으면 모든 인증 사용자 허용. 아래에 추가하면 해당 닉네임만 접근 가능.
 app:
-  allowed-kakao-accounts: ["30_윤보람", "김효진"]
+  allowed-kakao-accounts: ["30_윤보람", "김효진", "bk"]
   # allowed-kakao-accounts: [ "닉네임1", "닉네임2" ]
 
 supabase:
