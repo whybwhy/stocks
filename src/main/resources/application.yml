@@ -52,3 +52,20 @@ supabase:
   url: ${SUPABASE_URL:}
   anon-key: ${SUPABASE_ANON_KEY:}
 
+# 텔레그램 봇 토큰 (BotFather에서 발급)
+telegram:
+  bot-token: ${TELEGRAM_BOT_TOKEN:}
+  chat-id: ${TELEGRAM_CHAT_ID:}
+
+# 한국투자증권 Open API (국내 주식 목표가 알람 시 KIS 현재가 사용)
+# KIS Developers 앱 등록 후 APP_KEY, APP_SECRET 발급
+kis:
+  app-key: ${KIS_APP_KEY:}
+  app-secret: ${KIS_APP_SECRET:}
+  # 실전: https://openapi.koreainvestment.com:9443
+  # 모의: https://openapivts.koreainvestment.com:29443
+  base-url: ${KIS_BASE_URL:https://openapi.koreainvestment.com:9443}
+  # websocket: 실시간 체결가 (기본값), rest: 폴링
+  mode: ${KIS_MODE:websocket}
+  # REST 모드일 때 폴링 간격(초). 기본 30초. (환경변수: KIS_REST_CHECK_INTERVAL_SECONDS)
+  rest-check-interval-seconds: ${KIS_REST_CHECK_INTERVAL_SECONDS:30}

@@ -1,6 +1,6 @@
 package com.example.stocks.web;
 
-import com.example.stocks.config.AppProperties;
+import com.example.stocks.supabase.SupabaseService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Controller;
@@ -8,16 +8,15 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
 import java.security.Principal;
-import java.util.List;
 import java.util.Map;
 
 @Controller
 public class MainController {
 
-    private final AppProperties appProperties;
+    private final SupabaseService supabaseService;
 
-    public MainController(AppProperties appProperties) {
-        this.appProperties = appProperties;
+    public MainController(SupabaseService supabaseService) {
+        this.supabaseService = supabaseService;
     }
 
     @GetMapping("/main")
@@ -25,10 +24,8 @@ public class MainController {
                       @AuthenticationPrincipal OAuth2User user,
                       Model model) {
         model.addAttribute("showLogout", principal != null);
-        List<String> allowed = appProperties.getAllowedKakaoAccounts();
         String nickname = resolveKakaoNickname(user);
-        boolean showChartboyLink = allowed.isEmpty()
-                || (nickname != null && allowed.stream().anyMatch(a -> a != null && a.trim().equalsIgnoreCase(nickname.trim())));
+        boolean showChartboyLink = supabaseService.hasAccess(nickname, "chartboy");
         model.addAttribute("showChartboyLink", showChartboyLink);
         model.addAttribute("userNickname", nickname);
         return "main";

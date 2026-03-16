@@ -1,5 +1,6 @@
 package com.example.stocks.supabase;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -7,13 +8,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestClient;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class SupabaseService {
 
     private final RestClient supabaseRestClient;
 
-    public SupabaseService(RestClient supabaseRestClient) {
+    public SupabaseService(@Qualifier("supabaseRestClient") RestClient supabaseRestClient) {
         this.supabaseRestClient = supabaseRestClient;
     }
 
@@ -127,6 +129,73 @@ public class SupabaseService {
                         .build())
                 .retrieve()
                 .toBodilessEntity();
+    }
+
+    private static final String SERVICE_PERMISSION_TABLE = "service_permission";
+
+    /**
+     * 해당 서비스에 대한 허용 닉네임 목록 조회 (service 기준).
+     * 0건이면 "전체 허용" 의미.
+     */
+    public List<String> getAllowedNicknamesForService(String service) {
+        if (service == null || service.isBlank()) return List.of();
+        try {
+            List<ServicePermissionDto> list = supabaseRestClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/rest/v1/" + SERVICE_PERMISSION_TABLE)
+                            .queryParam("select", "nickname")
+                            .queryParam("service", "eq." + service.trim())
+                            .build())
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<List<ServicePermissionDto>>() {});
+            if (list == null) return List.of();
+            return list.stream()
+                    .map(ServicePermissionDto::getNickname)
+                    .filter(n -> n != null && !n.isBlank())
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    /**
+     * 해당 닉네임이 접근 가능한 서비스 목록 조회 (nickname 기준).
+     */
+    public List<String> getServicesForNickname(String nickname) {
+        if (nickname == null || nickname.isBlank()) return List.of();
+        String filter = "eq.\"" + nickname.trim().replace("\"", "\"\"") + "\"";
+        try {
+            List<ServicePermissionDto> list = supabaseRestClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/rest/v1/" + SERVICE_PERMISSION_TABLE)
+                            .queryParam("select", "service")
+                            .queryParam("nickname", filter)
+                            .build())
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<List<ServicePermissionDto>>() {});
+            if (list == null) return List.of();
+            return list.stream()
+                    .map(ServicePermissionDto::getService)
+                    .filter(s -> s != null && !s.isBlank())
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    /**
+     * 해당 닉네임이 해당 서비스 접근 권한이 있는지 여부.
+     * 해당 서비스에 권한 행이 0건이면 전체 허용(true), 1건 이상이면 목록에 포함된 경우만 true.
+     */
+    public boolean hasAccess(String nickname, String service) {
+        List<String> allowed = getAllowedNicknamesForService(service);
+        if (allowed.isEmpty()) return true;
+        if (nickname == null || nickname.isBlank()) return false;
+        String n = nickname.trim();
+        return allowed.stream()
+                .anyMatch(a -> a != null && a.trim().equalsIgnoreCase(n));
     }
 
     /** 이력 저장 (생성/변경 시 호출). */

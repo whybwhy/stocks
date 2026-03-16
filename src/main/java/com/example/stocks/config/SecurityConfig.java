@@ -1,5 +1,6 @@
 package com.example.stocks.config;
 
+import com.example.stocks.supabase.SupabaseService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -10,10 +11,10 @@ import org.springframework.security.web.access.intercept.AuthorizationFilter;
 @Configuration
 public class SecurityConfig {
 
-    private final AppProperties appProperties;
+    private final SupabaseService supabaseService;
 
-    public SecurityConfig(AppProperties appProperties) {
-        this.appProperties = appProperties;
+    public SecurityConfig(SupabaseService supabaseService) {
+        this.supabaseService = supabaseService;
     }
 
     @Bean
@@ -30,6 +31,7 @@ public class SecurityConfig {
                         .requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").permitAll()
                         // /admin 이 포함된 경로는 인증 없이 접근 허용 (예: /admin, /admin/stock/chartboy)
                         .requestMatchers("/admin", "/admin/**").permitAll()
+                        .requestMatchers("/api/alerts", "/api/alerts/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
@@ -44,7 +46,7 @@ public class SecurityConfig {
                         .deleteCookies("JSESSIONID")
                 )
                 .addFilterBefore(new KakaoAuthLoggingFilter(), AuthorizationFilter.class)
-                .addFilterBefore(new ChartboyAccessFilter(appProperties), AuthorizationFilter.class);
+                .addFilterBefore(new ServicePermissionFilter(supabaseService), AuthorizationFilter.class);
 
         return http.build();
     }
