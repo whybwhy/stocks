@@ -77,3 +77,13 @@ kis:
     enabled: ${KIS_MARKET_INDEX_ENABLED:true}
     # 전송 간격(초). 기본 120초 = 2분 (환경변수: KIS_MARKET_INDEX_INTERVAL_SECONDS)
     interval-seconds: ${KIS_MARKET_INDEX_INTERVAL_SECONDS:120}
+
+# FRED API (미국 경제지표 발표일 자동 조회)
+# https://fred.stlouisfed.org/docs/api/api_key.html 에서 무료 발급
+# https://api.stlouisfed.org/fred/series/search?api_key=abcdefghijklmnopqrstuvwxyz123456&search_text=canada
+fred:
+  api-key: ${FRED_API_KEY:abcdefghijklmnopqrstuvwxyz123456}
+
+# 경제 이벤트 알림 (FOMC/CPI/PPI/고용지표 D-1/당일 텔레그램 알림)
+economic-event:
+  enabled: ${ECONOMIC_EVENT_ENABLED:true}
