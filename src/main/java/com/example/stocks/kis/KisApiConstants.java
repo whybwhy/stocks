@@ -30,6 +30,18 @@ public final class KisApiConstants {
      */
     public static final String INDEX_CODE_NIGHT_FUTURES = "3003";
 
+    // ─── 해외 지수 (inquire-daily-chartprice) ───
+    /** 해외주식 종목/지수/환율기간별시세 TR_ID */
+    public static final String TR_ID_OVERSEAS_CHART = "FHKST03030100";
+    /** 해외주식 종목/지수/환율기간별시세 URL */
+    public static final String OVERSEAS_CHART_URL = "/uapi/overseas-price/v1/quotations/inquire-daily-chartprice";
+    /** 해외 시장구분: N (미국 전체) */
+    public static final String OVERSEAS_MRKT_CODE = "N";
+    /** 나스닥100 지수 심볼 */
+    public static final String OVERSEAS_NDX = "NDX";
+    /** S&P500 지수 심볼 */
+    public static final String OVERSEAS_SPX = "SPX";
+
     // ─── WebSocket ───
     /** WebSocket 실시간 체결가 TR ID */
     public static final String WS_TR_ID_EXEC = "H0STCNT0";
