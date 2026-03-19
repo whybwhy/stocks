@@ -15,11 +15,14 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import com.example.stocks.kis.KisPriceFetcher;
+import com.example.stocks.kis.KisOverseasPriceFetcher;
 
 /**
- * Supabase에서 알람을 읽고, 한국투자증권 API 현재가와 비교 후:
+ * Supabase에서 알람을 읽고, 국내/해외 현재가와 비교 후:
  *  - is_active=true  + 목표가 도달 → 텔레그램 발송 후 is_active=false
- *  - is_active=false + 현재가가 목표가 아래로 복귀 → is_active=true (재활성화)
+ *  - is_active=false + 현재가가 목표가 반대편으로 복귀 → is_active=true (재활성화)
+ *
+ * market 구분: KR(국내), NAS/NYS/AMS(미국)
  */
 @Service
 public class AlertService {
@@ -30,46 +33,82 @@ public class AlertService {
     private final RestClient supabaseRestClient;
     private final TelegramService telegramService;
     private final KisPriceFetcher kisPriceFetcher;
+    private final KisOverseasPriceFetcher overseasPriceFetcher;
 
     public AlertService(@Qualifier("supabaseRestClient") RestClient supabaseRestClient,
                         TelegramService telegramService,
-                        KisPriceFetcher kisPriceFetcher) {
+                        KisPriceFetcher kisPriceFetcher,
+                        KisOverseasPriceFetcher overseasPriceFetcher) {
         this.supabaseRestClient = supabaseRestClient;
         this.telegramService = telegramService;
         this.kisPriceFetcher = kisPriceFetcher;
+        this.overseasPriceFetcher = overseasPriceFetcher;
     }
 
     /**
-     * 활성/비활성 알람 전체 체크. 스케줄러에서 호출됨.
+     * 전체 알람 체크. 스케줄러에서 호출됨.
+     * KR/US 각각 장 시간일 때만 해당 시장 알람을 체크.
      */
     public void checkAlerts() {
-        ZonedDateTime nowKst = ZonedDateTime.now(KST);
-        if (!isMarketCheckTime(nowKst)) {
-            log.debug("Skipping alerts - outside KR market hours");
-            return;
-        }
-
-        if (kisPriceFetcher == null || !kisPriceFetcher.isConfigured()) {
-            log.warn("KIS API not configured; skipping price alerts");
-            return;
-        }
-
         List<PriceAlertDto> allAlerts = getAllAlerts();
         if (allAlerts.isEmpty()) return;
 
-        Set<String> stockCodes = allAlerts.stream()
-                .map(PriceAlertDto::getStockCode)
-                .filter(s -> s != null && !s.isBlank())
-                .collect(Collectors.toSet());
+        ZonedDateTime nowKst = ZonedDateTime.now(KST);
 
-        Map<String, BigDecimal> prices = kisPriceFetcher.fetchPrices(stockCodes);
-        if (prices.isEmpty()) return;
+        // 국내 알람 체크
+        if (isKrMarketTime(nowKst) && kisPriceFetcher != null && kisPriceFetcher.isConfigured()) {
+            List<PriceAlertDto> krAlerts = allAlerts.stream().filter(PriceAlertDto::isKr).collect(Collectors.toList());
+            if (!krAlerts.isEmpty()) {
+                Set<String> codes = krAlerts.stream().map(PriceAlertDto::getStockCode)
+                        .filter(s -> s != null && !s.isBlank()).collect(Collectors.toSet());
+                Map<String, BigDecimal> prices = kisPriceFetcher.fetchPrices(codes);
+                if (!prices.isEmpty()) processAlerts(krAlerts, prices);
+            }
+        }
 
-        processAlerts(allAlerts, prices);
+        // 미국 알람 체크
+        if (isUsMarketTime(nowKst) && overseasPriceFetcher != null && overseasPriceFetcher.isConfigured()) {
+            checkUsAlerts(allAlerts);
+        }
+    }
+
+    private void checkUsAlerts(List<PriceAlertDto> allAlerts) {
+        List<PriceAlertDto> usAlerts = allAlerts.stream().filter(PriceAlertDto::isUs).collect(Collectors.toList());
+        if (usAlerts.isEmpty()) return;
+
+        // 거래소별로 그룹핑 (NAS, NYS, AMS)
+        Map<String, List<PriceAlertDto>> byExchange = usAlerts.stream()
+                .collect(Collectors.groupingBy(a -> a.getMarket().toUpperCase()));
+
+        Map<String, BigDecimal> allPrices = new HashMap<>();
+
+        for (Map.Entry<String, List<PriceAlertDto>> entry : byExchange.entrySet()) {
+            String excd = entry.getKey();
+            Set<String> symbols = entry.getValue().stream()
+                    .map(a -> a.getStockCode().toUpperCase())
+                    .collect(Collectors.toSet());
+            Map<String, BigDecimal> prices = overseasPriceFetcher.fetchPrices(excd, symbols);
+            allPrices.putAll(prices);
+        }
+
+        if (!allPrices.isEmpty()) {
+            // US 알람의 stock_code를 대문자로 맞춰 비교
+            for (PriceAlertDto alert : usAlerts) {
+                BigDecimal price = allPrices.get(alert.getStockCode().toUpperCase());
+                if (price == null) continue;
+                boolean active = Boolean.TRUE.equals(alert.getIsActive());
+                if (active && isTriggered(alert, price)) {
+                    sendAlert(alert, price);
+                    markTriggered(alert.getId());
+                } else if (!active && isResetCondition(alert, price)) {
+                    reactivate(alert.getId(), price, alert);
+                }
+            }
+        }
     }
 
     /**
-     * WebSocket 실시간 체결가 수신 시 단건 체크.
+     * WebSocket 실시간 체결가 수신 시 단건 체크 (국내 전용).
      */
     public void checkSingleAlert(String stockCode, BigDecimal currentPrice) {
         if (stockCode == null || currentPrice == null) return;
@@ -82,11 +121,6 @@ public class AlertService {
         processAlerts(matched, Map.of(stockCode, currentPrice));
     }
 
-    /**
-     * 알람 목록과 현재가 맵으로:
-     * - 활성 알람: 목표가 도달 시 발송 + 비활성화
-     * - 비활성 알람: 현재가가 목표가 아래로 복귀 시 재활성화
-     */
     private void processAlerts(List<PriceAlertDto> alerts, Map<String, BigDecimal> prices) {
         for (PriceAlertDto alert : alerts) {
             BigDecimal currentPrice = prices.get(alert.getStockCode());
@@ -107,11 +141,6 @@ public class AlertService {
         }
     }
 
-    /**
-     * 목표가 도달 여부.
-     * ABOVE: 현재가 >= 목표가
-     * BELOW: 현재가 <= 목표가
-     */
     private boolean isTriggered(PriceAlertDto alert, BigDecimal currentPrice) {
         if (alert.getTargetPrice() == null) return false;
         if ("ABOVE".equalsIgnoreCase(alert.getCondition())) {
@@ -122,11 +151,6 @@ public class AlertService {
         return false;
     }
 
-    /**
-     * 재활성화 조건: 현재가가 목표가 반대편으로 복귀.
-     * ABOVE: 현재가 < 목표가 (목표가 아래로 떨어짐)
-     * BELOW: 현재가 > 목표가 (목표가 위로 올라감)
-     */
     private boolean isResetCondition(PriceAlertDto alert, BigDecimal currentPrice) {
         if (alert.getTargetPrice() == null) return false;
         if ("ABOVE".equalsIgnoreCase(alert.getCondition())) {
@@ -144,13 +168,19 @@ public class AlertService {
         String symbolDisplay = alert.getSymbol() != null && !alert.getSymbol().isBlank()
                 ? alert.getSymbol() : alert.getStockCode();
 
+        String flag = alert.isUs() ? "🇺🇸" : "🇰🇷";
+        String currency = alert.isUs() ? "$" : "";
+
         String msg = String.format(
-                "🇰🇷 <b>%s</b>%s\n목표가 %s %s\n현재가 <b>%s</b>",
+                "%s <b>%s</b>%s\n목표가 %s%s %s\n현재가 <b>%s%s</b>",
+                flag,
                 symbolDisplay,
                 label,
-                formatPrice(alert.getTargetPrice()),
+                currency,
+                formatPrice(alert.getTargetPrice(), alert.isUs()),
                 conditionText,
-                formatPrice(currentPrice)
+                currency,
+                formatPrice(currentPrice, alert.isUs())
         );
 
         telegramService.broadcast(msg);
@@ -158,27 +188,53 @@ public class AlertService {
                 symbolDisplay, alert.getCondition(), alert.getTargetPrice(), currentPrice);
     }
 
-    private String formatPrice(BigDecimal price) {
+    private String formatPrice(BigDecimal price, boolean isUs) {
         if (price == null) return "-";
+        if (isUs) {
+            return String.format("%,.2f", price);
+        }
         if (price.scale() <= 0 || price.stripTrailingZeros().scale() <= 0) {
             return String.format("%,.0f", price);
         }
         return String.format("%,.2f", price);
     }
 
-    /**
-     * 한국 장 시간: 평일 08:50~15:35 KST
-     */
-    static boolean isMarketCheckTime(ZonedDateTime nowKst) {
+    // ─── 장 시간 판단 ───
+
+    /** 한국 장: 평일 08:50~15:35 KST */
+    static boolean isKrMarketTime(ZonedDateTime nowKst) {
         DayOfWeek dow = nowKst.getDayOfWeek();
         if (dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY) return false;
         LocalTime t = nowKst.toLocalTime();
         return !t.isBefore(LocalTime.of(8, 50)) && !t.isAfter(LocalTime.of(15, 35));
     }
 
+    /**
+     * 미국 장: 정규장 09:30~16:00 ET → KST 23:30~06:00 (서머타임 22:30~05:00)
+     * 여유 있게 KST 22:00~07:00 범위로 체크.
+     */
+    static boolean isUsMarketTime(ZonedDateTime nowKst) {
+        DayOfWeek dow = nowKst.getDayOfWeek();
+        LocalTime t = nowKst.toLocalTime();
+
+        // 일요일 전체: 운영 없음
+        if (dow == DayOfWeek.SUNDAY) return false;
+
+        // 토요일 새벽 00:00~07:00: 금요 야간
+        if (dow == DayOfWeek.SATURDAY) {
+            return t.isBefore(LocalTime.of(7, 0));
+        }
+
+        // 평일 22:00~23:59 (당일 야간 시작)
+        boolean nightStart = !t.isBefore(LocalTime.of(22, 0));
+        // 평일 00:00~07:00 (전일 야간 연장)
+        boolean earlyMorning = t.isBefore(LocalTime.of(7, 0));
+
+        return nightStart || earlyMorning;
+    }
+
     // ─── Supabase CRUD ───
 
-    /** is_active=true 인 알람만 조회 (스케줄러용) */
     public List<PriceAlertDto> getActiveAlerts() {
         try {
             List<PriceAlertDto> list = supabaseRestClient.get()
@@ -199,7 +255,6 @@ public class AlertService {
         }
     }
 
-    /** 전체 알람 조회 (활성 + 비활성) */
     public List<PriceAlertDto> getAllAlerts() {
         try {
             List<PriceAlertDto> list = supabaseRestClient.get()
@@ -221,6 +276,9 @@ public class AlertService {
 
     public PriceAlertDto createAlert(PriceAlertDto dto) {
         dto.setIsActive(true);
+        if (dto.getMarket() == null || dto.getMarket().isBlank()) {
+            dto.setMarket("KR");
+        }
         List<PriceAlertDto> result = supabaseRestClient.post()
                 .uri("/rest/v1/price_alerts")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -272,7 +330,7 @@ public class AlertService {
                     .body("{\"is_active\": true}")
                     .retrieve()
                     .toBodilessEntity();
-            log.info("ALERT REACTIVATED: {} target={} currentPrice={} (price dropped below target)",
+            log.info("ALERT REACTIVATED: {} target={} currentPrice={}",
                     symbolDisplay, alert.getTargetPrice(), currentPrice);
         } catch (Exception e) {
             log.error("Failed to reactivate alert {}: {}", id, e.getMessage());

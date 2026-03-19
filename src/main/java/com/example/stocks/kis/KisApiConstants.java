@@ -30,6 +30,12 @@ public final class KisApiConstants {
      */
     public static final String INDEX_CODE_NIGHT_FUTURES = "3003";
 
+    // ─── 해외주식 현재가 (price-detail) ───
+    /** 해외주식 현재가상세 TR_ID (실전) */
+    public static final String TR_ID_OVERSEAS_PRICE = "HHDFS76200200";
+    /** 해외주식 현재가상세 URL */
+    public static final String OVERSEAS_PRICE_URL = "/uapi/overseas-price/v1/quotations/price-detail";
+
     // ─── 해외 지수 (inquire-daily-chartprice) ───
     /** 해외주식 종목/지수/환율기간별시세 TR_ID */
     public static final String TR_ID_OVERSEAS_CHART = "FHKST03030100";

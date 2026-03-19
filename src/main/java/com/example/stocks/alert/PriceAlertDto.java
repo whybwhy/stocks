@@ -2,16 +2,20 @@ package com.example.stocks.alert;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.math.BigDecimal;
+
 /**
- * Supabase price_alerts 테이블 행 (한국투자증권 API 형식).
+ * Supabase price_alerts 테이블 행.
+ * market: KR(국내), NAS(나스닥), NYS(뉴욕), AMS(아멕스)
  */
 public class PriceAlertDto {
 
     private Long id;
+    private String market;
     private String stockCode;
     private String symbol;
-    private java.math.BigDecimal targetPrice;
-    private String condition; // ABOVE, BELOW
+    private BigDecimal targetPrice;
+    private String condition;
     private String label;
     private Boolean isActive;
     private String triggeredAt;
@@ -19,6 +23,9 @@ public class PriceAlertDto {
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+
+    public String getMarket() { return market; }
+    public void setMarket(String market) { this.market = market; }
 
     @JsonProperty("stock_code")
     public String getStockCode() { return stockCode; }
@@ -28,8 +35,8 @@ public class PriceAlertDto {
     public void setSymbol(String symbol) { this.symbol = symbol; }
 
     @JsonProperty("target_price")
-    public java.math.BigDecimal getTargetPrice() { return targetPrice; }
-    public void setTargetPrice(java.math.BigDecimal targetPrice) { this.targetPrice = targetPrice; }
+    public BigDecimal getTargetPrice() { return targetPrice; }
+    public void setTargetPrice(BigDecimal targetPrice) { this.targetPrice = targetPrice; }
 
     @JsonProperty("condition")
     public String getCondition() { return condition; }
@@ -49,4 +56,7 @@ public class PriceAlertDto {
     @JsonProperty("created_at")
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
+
+    public boolean isKr() { return market == null || "KR".equalsIgnoreCase(market); }
+    public boolean isUs() { return "NAS".equalsIgnoreCase(market) || "NYS".equalsIgnoreCase(market) || "AMS".equalsIgnoreCase(market); }
 }
