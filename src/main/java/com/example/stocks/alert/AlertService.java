@@ -162,26 +162,24 @@ public class AlertService {
     }
 
     private void sendAlert(PriceAlertDto alert, BigDecimal currentPrice) {
-        String conditionText = "ABOVE".equalsIgnoreCase(alert.getCondition()) ? "이상 돌파" : "이하 도달";
-        String label = alert.getLabel() != null && !alert.getLabel().isBlank()
-                ? " (" + alert.getLabel() + ")" : "";
         String symbolDisplay = alert.getSymbol() != null && !alert.getSymbol().isBlank()
                 ? alert.getSymbol() : alert.getStockCode();
 
         String flag = alert.isUs() ? "🇺🇸" : "🇰🇷";
         String currency = alert.isUs() ? "$" : "";
+        String unit = alert.isUs() ? "" : "원";
 
-        String msg = String.format(
-                "%s <b>%s</b>%s\n목표가 %s%s %s\n현재가 <b>%s%s</b>",
-                flag,
-                symbolDisplay,
-                label,
-                currency,
-                formatPrice(alert.getTargetPrice(), alert.isUs()),
-                conditionText,
-                currency,
-                formatPrice(currentPrice, alert.isUs())
-        );
+        StringBuilder sb = new StringBuilder();
+        sb.append(flag).append(" <b>").append(symbolDisplay).append("</b>\n");
+        sb.append("목표 : ").append(currency).append(formatPrice(alert.getTargetPrice(), alert.isUs())).append(unit).append("\n");
+        sb.append("현재 : <b>").append(currency).append(formatPrice(currentPrice, alert.isUs())).append(unit).append("</b>");
+
+        String label = alert.getLabel();
+        if (label != null && !label.isBlank()) {
+            sb.append("\n").append(label);
+        }
+
+        String msg = sb.toString();
 
         telegramService.broadcast(msg);
         log.info("ALERT TRIGGERED: {} {} target={} current={}",
