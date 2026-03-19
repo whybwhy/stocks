@@ -55,7 +55,10 @@ supabase:
 # 텔레그램 봇 토큰 (BotFather에서 발급)
 telegram:
   bot-token: ${TELEGRAM_BOT_TOKEN:}
-  chat-id: ${TELEGRAM_CHAT_ID:}
+  # 알람을 보낼 텔레그램 채팅 ID 목록 (여러 명/그룹에 동시 발송)
+  # Render 환경변수: TELEGRAM_CHAT_IDS_0=8066272092, TELEGRAM_CHAT_IDS_1=... (인덱스 표기)
+  chat-ids:
+    - "8066272092"
 
 # 한국투자증권 Open API (국내 주식 목표가 알람 시 KIS 현재가 사용)
 # KIS Developers 앱 등록 후 APP_KEY, APP_SECRET 발급
