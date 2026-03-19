@@ -3,7 +3,7 @@
 -- symbol: 종목명 표시용 (예: 삼성전자)
 -- target_price: 목표가 도달 시 알람 (정수만)
 -- condition: ABOVE(이상 도달), BELOW(이하 도달)
--- telegram_chat_id: 알람 수신 텔레그램 채팅방 ID
+-- 텔레그램 채팅 ID는 application.yml 에서 관리 (telegram.chat-ids)
 
 CREATE TABLE IF NOT EXISTS public.price_alerts (
     id bigserial PRIMARY KEY,
@@ -11,7 +11,6 @@ CREATE TABLE IF NOT EXISTS public.price_alerts (
     symbol text,
     target_price numeric(18, 0) NOT NULL,
     condition text NOT NULL DEFAULT 'ABOVE' CHECK (condition IN ('ABOVE', 'BELOW')),
-    telegram_chat_id text NOT NULL DEFAULT '8066272092',
     label text,
     is_active boolean NOT NULL DEFAULT true,
     triggered_at timestamptz,

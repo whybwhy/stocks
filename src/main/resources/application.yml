@@ -66,6 +66,12 @@ kis:
   # 모의: https://openapivts.koreainvestment.com:29443
   base-url: ${KIS_BASE_URL:https://openapi.koreainvestment.com:9443}
   # websocket: 실시간 체결가 (기본값), rest: 폴링
-  mode: ${KIS_MODE:websocket}
+  mode: ${KIS_MODE:rest}
   # REST 모드일 때 폴링 간격(초). 기본 30초. (환경변수: KIS_REST_CHECK_INTERVAL_SECONDS)
   rest-check-interval-seconds: ${KIS_REST_CHECK_INTERVAL_SECONDS:30}
+  # 시장 지수 알림 (코스피·코스닥·야간선물)
+  market-index:
+    # false 로 설정 시 지수 알림 비활성화 (환경변수: KIS_MARKET_INDEX_ENABLED)
+    enabled: ${KIS_MARKET_INDEX_ENABLED:true}
+    # 전송 간격(초). 기본 120초 = 2분 (환경변수: KIS_MARKET_INDEX_INTERVAL_SECONDS)
+    interval-seconds: ${KIS_MARKET_INDEX_INTERVAL_SECONDS:120}

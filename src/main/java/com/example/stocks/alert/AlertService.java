@@ -17,8 +17,9 @@ import java.util.stream.Collectors;
 import com.example.stocks.kis.KisPriceFetcher;
 
 /**
- * Supabase에서 활성 알람을 읽고, 한국투자증권 API 현재가와 비교 후 조건 충족 시 텔레그램 발송.
- * 국내(KR) 주식만 지원 (stock_code 6자리).
+ * Supabase에서 알람을 읽고, 한국투자증권 API 현재가와 비교 후:
+ *  - is_active=true  + 목표가 도달 → 텔레그램 발송 후 is_active=false
+ *  - is_active=false + 현재가가 목표가 아래로 복귀 → is_active=true (재활성화)
  */
 @Service
 public class AlertService {
@@ -39,12 +40,9 @@ public class AlertService {
     }
 
     /**
-     * 활성 알람 전체 체크. 스케줄러에서 호출됨.
+     * 활성/비활성 알람 전체 체크. 스케줄러에서 호출됨.
      */
     public void checkAlerts() {
-        List<PriceAlertDto> alerts = getActiveAlerts();
-        if (alerts.isEmpty()) return;
-
         ZonedDateTime nowKst = ZonedDateTime.now(KST);
         if (!isMarketCheckTime(nowKst)) {
             log.debug("Skipping alerts - outside KR market hours");
@@ -56,7 +54,10 @@ public class AlertService {
             return;
         }
 
-        Set<String> stockCodes = alerts.stream()
+        List<PriceAlertDto> allAlerts = getAllAlerts();
+        if (allAlerts.isEmpty()) return;
+
+        Set<String> stockCodes = allAlerts.stream()
                 .map(PriceAlertDto::getStockCode)
                 .filter(s -> s != null && !s.isBlank())
                 .collect(Collectors.toSet());
@@ -64,40 +65,74 @@ public class AlertService {
         Map<String, BigDecimal> prices = kisPriceFetcher.fetchPrices(stockCodes);
         if (prices.isEmpty()) return;
 
+        processAlerts(allAlerts, prices);
+    }
+
+    /**
+     * WebSocket 실시간 체결가 수신 시 단건 체크.
+     */
+    public void checkSingleAlert(String stockCode, BigDecimal currentPrice) {
+        if (stockCode == null || currentPrice == null) return;
+
+        List<PriceAlertDto> allAlerts = getAllAlerts();
+        List<PriceAlertDto> matched = allAlerts.stream()
+                .filter(a -> stockCode.equals(a.getStockCode()))
+                .collect(Collectors.toList());
+
+        processAlerts(matched, Map.of(stockCode, currentPrice));
+    }
+
+    /**
+     * 알람 목록과 현재가 맵으로:
+     * - 활성 알람: 목표가 도달 시 발송 + 비활성화
+     * - 비활성 알람: 현재가가 목표가 아래로 복귀 시 재활성화
+     */
+    private void processAlerts(List<PriceAlertDto> alerts, Map<String, BigDecimal> prices) {
         for (PriceAlertDto alert : alerts) {
             BigDecimal currentPrice = prices.get(alert.getStockCode());
             if (currentPrice == null) continue;
 
-            boolean triggered = isTriggered(alert, currentPrice);
-            if (triggered) {
-                sendAlert(alert, currentPrice);
-                markTriggered(alert.getId());
+            boolean active = Boolean.TRUE.equals(alert.getIsActive());
+
+            if (active) {
+                if (isTriggered(alert, currentPrice)) {
+                    sendAlert(alert, currentPrice);
+                    markTriggered(alert.getId());
+                }
+            } else {
+                if (isResetCondition(alert, currentPrice)) {
+                    reactivate(alert.getId(), currentPrice, alert);
+                }
             }
         }
     }
 
     /**
-     * WebSocket 실시간 체결가 수신 시 단건 알람 체크.
+     * 목표가 도달 여부.
+     * ABOVE: 현재가 >= 목표가
+     * BELOW: 현재가 <= 목표가
      */
-    public void checkSingleAlert(String stockCode, BigDecimal currentPrice) {
-        if (stockCode == null || currentPrice == null) return;
-
-        List<PriceAlertDto> alerts = getActiveAlerts();
-        for (PriceAlertDto alert : alerts) {
-            if (!stockCode.equals(alert.getStockCode())) continue;
-            if (isTriggered(alert, currentPrice)) {
-                sendAlert(alert, currentPrice);
-                markTriggered(alert.getId());
-            }
-        }
-    }
-
     private boolean isTriggered(PriceAlertDto alert, BigDecimal currentPrice) {
         if (alert.getTargetPrice() == null) return false;
         if ("ABOVE".equalsIgnoreCase(alert.getCondition())) {
             return currentPrice.compareTo(alert.getTargetPrice()) >= 0;
         } else if ("BELOW".equalsIgnoreCase(alert.getCondition())) {
             return currentPrice.compareTo(alert.getTargetPrice()) <= 0;
+        }
+        return false;
+    }
+
+    /**
+     * 재활성화 조건: 현재가가 목표가 반대편으로 복귀.
+     * ABOVE: 현재가 < 목표가 (목표가 아래로 떨어짐)
+     * BELOW: 현재가 > 목표가 (목표가 위로 올라감)
+     */
+    private boolean isResetCondition(PriceAlertDto alert, BigDecimal currentPrice) {
+        if (alert.getTargetPrice() == null) return false;
+        if ("ABOVE".equalsIgnoreCase(alert.getCondition())) {
+            return currentPrice.compareTo(alert.getTargetPrice()) < 0;
+        } else if ("BELOW".equalsIgnoreCase(alert.getCondition())) {
+            return currentPrice.compareTo(alert.getTargetPrice()) > 0;
         }
         return false;
     }
@@ -118,7 +153,7 @@ public class AlertService {
                 formatPrice(currentPrice)
         );
 
-        telegramService.sendMessage(alert.getTelegramChatId(), msg);
+        telegramService.broadcast(msg);
         log.info("ALERT TRIGGERED: {} {} target={} current={}",
                 symbolDisplay, alert.getCondition(), alert.getTargetPrice(), currentPrice);
     }
@@ -143,6 +178,7 @@ public class AlertService {
 
     // ─── Supabase CRUD ───
 
+    /** is_active=true 인 알람만 조회 (스케줄러용) */
     public List<PriceAlertDto> getActiveAlerts() {
         try {
             List<PriceAlertDto> list = supabaseRestClient.get()
@@ -163,13 +199,14 @@ public class AlertService {
         }
     }
 
+    /** 전체 알람 조회 (활성 + 비활성) */
     public List<PriceAlertDto> getAllAlerts() {
         try {
             List<PriceAlertDto> list = supabaseRestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/rest/v1/price_alerts")
                             .queryParam("select", "*")
-                            .queryParam("order", "id.desc")
+                            .queryParam("order", "id.asc")
                             .build())
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
@@ -222,24 +259,23 @@ public class AlertService {
         }
     }
 
-    /**
-     * 발송 완료된 알람(is_active=false)을 매일 재활성화할 때 호출.
-     * is_active=false 인 행을 모두 is_active=true 로 변경.
-     */
-    public void resetTriggeredAlerts() {
+    private void reactivate(Long id, BigDecimal currentPrice, PriceAlertDto alert) {
+        String symbolDisplay = alert.getSymbol() != null && !alert.getSymbol().isBlank()
+                ? alert.getSymbol() : alert.getStockCode();
         try {
             supabaseRestClient.patch()
                     .uri(uriBuilder -> uriBuilder
                             .path("/rest/v1/price_alerts")
-                            .queryParam("is_active", "eq.false")
+                            .queryParam("id", "eq." + id)
                             .build())
                     .contentType(MediaType.APPLICATION_JSON)
                     .body("{\"is_active\": true}")
                     .retrieve()
                     .toBodilessEntity();
-            log.info("Triggered alerts reset to active (is_active=true)");
+            log.info("ALERT REACTIVATED: {} target={} currentPrice={} (price dropped below target)",
+                    symbolDisplay, alert.getTargetPrice(), currentPrice);
         } catch (Exception e) {
-            log.error("Failed to reset triggered alerts: {}", e.getMessage());
+            log.error("Failed to reactivate alert {}: {}", id, e.getMessage());
         }
     }
 }

@@ -12,7 +12,6 @@ public class PriceAlertDto {
     private String symbol;
     private java.math.BigDecimal targetPrice;
     private String condition; // ABOVE, BELOW
-    private String telegramChatId;
     private String label;
     private Boolean isActive;
     private String triggeredAt;
@@ -35,10 +34,6 @@ public class PriceAlertDto {
     @JsonProperty("condition")
     public String getCondition() { return condition; }
     public void setCondition(String condition) { this.condition = condition; }
-
-    @JsonProperty("telegram_chat_id")
-    public String getTelegramChatId() { return telegramChatId; }
-    public void setTelegramChatId(String telegramChatId) { this.telegramChatId = telegramChatId; }
 
     public String getLabel() { return label; }
     public void setLabel(String label) { this.label = label; }
