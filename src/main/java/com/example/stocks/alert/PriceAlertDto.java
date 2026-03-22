@@ -17,6 +17,7 @@ public class PriceAlertDto {
     private BigDecimal targetPrice;
     private String condition;
     private String label;
+    private String source;
     private Boolean isActive;
     private String triggeredAt;
     private String createdAt;
@@ -44,6 +45,9 @@ public class PriceAlertDto {
 
     public String getLabel() { return label; }
     public void setLabel(String label) { this.label = label; }
+
+    public String getSource() { return source; }
+    public void setSource(String source) { this.source = source; }
 
     @JsonProperty("is_active")
     public Boolean getIsActive() { return isActive; }

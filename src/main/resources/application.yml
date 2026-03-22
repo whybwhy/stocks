@@ -87,3 +87,8 @@ fred:
 # 경제 이벤트 알림 (FOMC/CPI/PPI/고용지표 D-1/당일 텔레그램 알림)
 economic-event:
   enabled: ${ECONOMIC_EVENT_ENABLED:true}
+
+# 테마 시세 알림 (평일 3회: 08:30 / 10:00 / 15:40)
+# false 로 설정 시 비활성화 (환경변수: THEME_ENABLED)
+theme:
+  enabled: ${THEME_ENABLED:true}
