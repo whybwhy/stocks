@@ -53,6 +53,15 @@ public class StockViewController {
         return "index";
     }
 
+    /**
+     * {@code price_alerts} 테이블 웹 목록으로 연결 (별도 컨트롤러·템플릿).
+     * {@code /stock/*} 권한 필터의 service 키는 {@code price-alerts}가 됨 — DB에 해당 service 제한이 없으면 전체 허용.
+     */
+    @GetMapping("/stock/price-alerts")
+    public String priceAlertsWeb() {
+        return "redirect:/price-alerts";
+    }
+
     private static final int DEFAULT_PAGE_SIZE = 25;
 
     @GetMapping("/stock/{service}")

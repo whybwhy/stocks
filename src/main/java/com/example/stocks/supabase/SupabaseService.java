@@ -7,7 +7,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestClient;
 
+import com.example.stocks.alert.PriceAlertDto;
+
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -56,6 +60,116 @@ public class SupabaseService {
         } catch (NumberFormatException e) {
             return 0;
         }
+    }
+
+    private static final String PRICE_ALERTS_TABLE = "price_alerts";
+
+    /**
+     * price_alerts 목록 (id 내림차순). source가 null/blank/ALL 이면 전체.
+     * 그 외에는 CHARTBOY, MY, MANUAL 중 하나로 필터.
+     */
+    public PriceAlertPageResult getPriceAlerts(int limit, int offset, String source) {
+        ResponseEntity<List<PriceAlertDto>> response = supabaseRestClient.get()
+                .uri(uriBuilder -> {
+                    uriBuilder
+                            .path("/rest/v1/" + PRICE_ALERTS_TABLE)
+                            .queryParam("select", "*")
+                            .queryParam("order", "id.desc")
+                            .queryParam("limit", limit)
+                            .queryParam("offset", offset);
+                    String s = source != null ? source.trim() : "";
+                    if (!s.isEmpty() && !"ALL".equalsIgnoreCase(s)) {
+                        uriBuilder.queryParam("source", "eq." + s);
+                    }
+                    return uriBuilder.build();
+                })
+                .header("Prefer", "count=exact")
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .toEntity(new ParameterizedTypeReference<List<PriceAlertDto>>() {});
+        List<PriceAlertDto> list = response.getBody() != null ? response.getBody() : List.of();
+        long total = parseTotalFromContentRange(response.getHeaders().getFirst("Content-Range"));
+        return new PriceAlertPageResult(list, total);
+    }
+
+    public PriceAlertDto getPriceAlertById(Long id) {
+        if (id == null) return null;
+        List<PriceAlertDto> list = supabaseRestClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/rest/v1/" + PRICE_ALERTS_TABLE)
+                        .queryParam("select", "*")
+                        .queryParam("id", "eq." + id)
+                        .build())
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .body(new ParameterizedTypeReference<List<PriceAlertDto>>() {});
+        return list != null && !list.isEmpty() ? list.get(0) : null;
+    }
+
+    /** 신규 price_alerts 행. DB 기본값으로 triggered_at, created_at 설정. */
+    public PriceAlertDto insertPriceAlert(PriceAlertDto dto) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("market", dto.getMarket() != null && !dto.getMarket().isBlank() ? dto.getMarket().trim() : "KR");
+        row.put("stock_code", dto.getStockCode() != null ? dto.getStockCode().trim() : "");
+        row.put("symbol", trimOrNull(dto.getSymbol()));
+        row.put("target_price", dto.getTargetPrice());
+        row.put("condition", dto.getCondition() != null && !dto.getCondition().isBlank() ? dto.getCondition().trim() : "ABOVE");
+        row.put("label", trimOrNull(dto.getLabel()));
+        row.put("source", dto.getSource() != null && !dto.getSource().isBlank() ? dto.getSource().trim() : "MY");
+        row.put("is_active", dto.getIsActive() != null ? dto.getIsActive() : Boolean.TRUE);
+        List<PriceAlertDto> out = supabaseRestClient.post()
+                .uri("/rest/v1/" + PRICE_ALERTS_TABLE)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Prefer", "return=representation")
+                .body(row)
+                .retrieve()
+                .body(new ParameterizedTypeReference<List<PriceAlertDto>>() {});
+        return out != null && !out.isEmpty() ? out.get(0) : null;
+    }
+
+    /**
+     * id 기준 부분 수정. clearTriggered 이면 triggered_at 을 null 로 초기화(재알람 가능).
+     */
+    public void updatePriceAlert(Long id, PriceAlertDto dto, boolean clearTriggered) {
+        if (id == null) return;
+        Map<String, Object> patch = new LinkedHashMap<>();
+        patch.put("market", dto.getMarket() != null && !dto.getMarket().isBlank() ? dto.getMarket().trim() : "KR");
+        patch.put("stock_code", dto.getStockCode() != null ? dto.getStockCode().trim() : "");
+        patch.put("symbol", trimOrNull(dto.getSymbol()));
+        patch.put("target_price", dto.getTargetPrice());
+        patch.put("condition", dto.getCondition() != null && !dto.getCondition().isBlank() ? dto.getCondition().trim() : "ABOVE");
+        patch.put("label", trimOrNull(dto.getLabel()));
+        patch.put("source", dto.getSource() != null && !dto.getSource().isBlank() ? dto.getSource().trim() : "MY");
+        patch.put("is_active", dto.getIsActive() != null ? dto.getIsActive() : Boolean.TRUE);
+        if (clearTriggered) {
+            patch.put("triggered_at", null);
+        }
+        supabaseRestClient.patch()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/rest/v1/" + PRICE_ALERTS_TABLE)
+                        .queryParam("id", "eq." + id)
+                        .build())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(patch)
+                .retrieve()
+                .toBodilessEntity();
+    }
+
+    public void deletePriceAlert(Long id) {
+        if (id == null) return;
+        supabaseRestClient.delete()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/rest/v1/" + PRICE_ALERTS_TABLE)
+                        .queryParam("id", "eq." + id)
+                        .build())
+                .retrieve()
+                .toBodilessEntity();
+    }
+
+    private static String trimOrNull(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        return t.isEmpty() ? null : t;
     }
 
     /** 엑셀(CSV) 다운로드용 전체 목록. id 내림차순, 최대 5000건. */

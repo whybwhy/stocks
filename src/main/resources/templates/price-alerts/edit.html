@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+    <title>목표가 알람 등록/수정</title>
+    <link rel="icon" type="image/png" th:href="@{/favicon.png}" href="/favicon.png"/>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen">
+<div class="w-full max-w-xl mx-auto p-4 sm:p-6">
+    <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
+        <h1 class="text-xl sm:text-2xl font-bold text-slate-800"
+            th:text="${form.id != null} ? '목표가 알람 수정' : '목표가 알람 등록'">등록</h1>
+        <div class="flex flex-wrap items-center gap-2">
+            <span th:if="${userNickname != null and !userNickname.isEmpty()}" class="text-sm text-slate-600" th:text="${userNickname}"></span>
+            <a th:href="|/${listPathPrefix}|" class="text-sm text-slate-500 hover:text-slate-700 underline">목록</a>
+            <a href="/main" class="text-sm text-slate-500 hover:text-slate-700 underline">메인</a>
+            <a th:if="${showLogout}" href="/logout" class="text-sm text-slate-500 hover:text-slate-700 underline">로그아웃</a>
+        </div>
+    </div>
+
+    <p th:if="${error != null}" class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" th:text="${error}">오류</p>
+
+    <form th:action="|/${listPathPrefix}/edit|" th:object="${form}" method="post"
+          class="rounded-xl border border-slate-200 bg-white shadow-sm p-4 sm:p-6 space-y-4">
+        <input type="hidden" name="id" th:value="${form.id}" th:if="${form.id != null}"/>
+
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">시장 <span class="text-red-500">*</span></label>
+            <select th:field="*{market}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 bg-white">
+                <option value="KR">KR (국내)</option>
+                <option value="NAS">NAS (나스닥)</option>
+                <option value="NYS">NYS (뉴욕)</option>
+                <option value="AMS">AMS (아멕스)</option>
+            </select>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">종목코드 <span class="text-red-500">*</span></label>
+            <input type="text" th:field="*{stockCode}" required placeholder="005930, AAPL, 371460…"
+                   class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm text-slate-800 focus:ring-2 focus:ring-slate-400"/>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">종목명 (표시용)</label>
+            <input type="text" th:field="*{symbol}" placeholder="삼성전자"
+                   class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 focus:ring-2 focus:ring-slate-400"/>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">목표가 <span class="text-red-500">*</span></label>
+            <input type="text" th:field="*{targetPrice}" required inputmode="decimal" placeholder="원/달러 숫자"
+                   class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-slate-800 focus:ring-2 focus:ring-slate-400"/>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">조건 <span class="text-red-500">*</span></label>
+            <select th:field="*{condition}" class="w-full rounded-lg border border-slate-300 px-3 py-2 bg-white text-slate-800">
+                <option value="ABOVE">ABOVE (가격이 목표 이상)</option>
+                <option value="BELOW">BELOW (가격이 목표 이하)</option>
+            </select>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">라벨 (메모)</label>
+            <textarea th:field="*{label}" rows="3" placeholder="차트 메모 등"
+                      class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 resize-y focus:ring-2 focus:ring-slate-400"></textarea>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">출처 (source) <span class="text-red-500">*</span></label>
+            <select th:field="*{source}" class="w-full rounded-lg border border-slate-300 px-3 py-2 bg-white text-slate-800">
+                <option value="MY">MY</option>
+                <option value="CHARTBOY">CHARTBOY</option>
+                <option value="MANUAL">MANUAL</option>
+            </select>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">상태</label>
+            <select th:field="*{isActive}" class="w-full rounded-lg border border-slate-300 px-3 py-2 bg-white text-slate-800">
+                <option value="true">활성 (스케줄러 검사)</option>
+                <option value="false">비활성</option>
+            </select>
+        </div>
+
+        <div th:if="${form.id != null}" class="flex items-start gap-2 rounded-lg border border-amber-100 bg-amber-50 p-3">
+            <input type="checkbox" id="clearTriggered" name="clearTriggered" value="true" class="mt-1 rounded border-slate-300"/>
+            <label for="clearTriggered" class="text-sm text-amber-900">알람 시각(triggered_at) 초기화 — 다시 목표가 도달 시 알림 받기</label>
+        </div>
+
+        <div class="flex flex-wrap gap-2 pt-2">
+            <button type="submit" class="px-5 py-2.5 rounded-lg bg-slate-800 text-white text-sm font-medium hover:bg-slate-700">저장</button>
+            <a th:href="|/${listPathPrefix}|" class="px-5 py-2.5 rounded-lg border border-slate-300 text-slate-700 text-sm hover:bg-slate-50">취소</a>
+        </div>
+    </form>
+
+    <form th:if="${form.id != null}" th:action="|/${listPathPrefix}/delete|" method="post" class="mt-6"
+          onsubmit="return confirm('이 알람을 삭제할까요?');">
+        <input type="hidden" name="id" th:value="${form.id}"/>
+        <button type="submit" class="text-sm text-red-600 hover:text-red-800 underline">삭제</button>
+    </form>
+</div>
+</body>
+</html>
