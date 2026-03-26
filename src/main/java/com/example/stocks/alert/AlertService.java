@@ -14,6 +14,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import com.example.stocks.kis.DomesticStockQuote;
 import com.example.stocks.kis.KisPriceFetcher;
 import com.example.stocks.kis.KisOverseasPriceFetcher;
 
@@ -61,8 +62,18 @@ public class AlertService {
             if (!krAlerts.isEmpty()) {
                 Set<String> codes = krAlerts.stream().map(PriceAlertDto::getStockCode)
                         .filter(s -> s != null && !s.isBlank()).collect(Collectors.toSet());
-                Map<String, BigDecimal> prices = kisPriceFetcher.fetchPrices(codes);
-                if (!prices.isEmpty()) processAlerts(krAlerts, prices);
+                Map<String, DomesticStockQuote> quotes = kisPriceFetcher.fetchQuotes(codes);
+                if (!quotes.isEmpty()) {
+                    Map<String, BigDecimal> prices = new HashMap<>();
+                    Map<String, BigDecimal> opens = new HashMap<>();
+                    for (Map.Entry<String, DomesticStockQuote> e : quotes.entrySet()) {
+                        prices.put(e.getKey(), e.getValue().currentPrice());
+                        if (e.getValue().openPrice() != null) {
+                            opens.put(e.getKey(), e.getValue().openPrice());
+                        }
+                    }
+                    processAlerts(krAlerts, prices, opens);
+                }
             }
         }
 
@@ -98,7 +109,7 @@ public class AlertService {
                 if (price == null) continue;
                 boolean active = Boolean.TRUE.equals(alert.getIsActive());
                 if (active && isTriggered(alert, price)) {
-                    sendAlert(alert, price);
+                    sendAlert(alert, price, null);
                     markTriggered(alert.getId());
                 } else if (!active && isResetCondition(alert, price)) {
                     reactivate(alert.getId(), price, alert);
@@ -118,19 +129,33 @@ public class AlertService {
                 .filter(a -> stockCode.equals(a.getStockCode()))
                 .collect(Collectors.toList());
 
-        processAlerts(matched, Map.of(stockCode, currentPrice));
+        Map<String, BigDecimal> opens = Map.of();
+        if (matched.stream().anyMatch(PriceAlertDto::isKr) && kisPriceFetcher != null && kisPriceFetcher.isConfigured()) {
+            Map<String, DomesticStockQuote> q = kisPriceFetcher.fetchQuotes(Set.of(stockCode.trim()));
+            opens = new HashMap<>();
+            for (Map.Entry<String, DomesticStockQuote> e : q.entrySet()) {
+                if (e.getValue().openPrice() != null) {
+                    opens.put(e.getKey(), e.getValue().openPrice());
+                }
+            }
+        }
+
+        processAlerts(matched, Map.of(stockCode, currentPrice), opens);
     }
 
-    private void processAlerts(List<PriceAlertDto> alerts, Map<String, BigDecimal> prices) {
+    private void processAlerts(List<PriceAlertDto> alerts, Map<String, BigDecimal> prices,
+                               Map<String, BigDecimal> openByCode) {
+        Map<String, BigDecimal> opens = openByCode != null ? openByCode : Map.of();
         for (PriceAlertDto alert : alerts) {
             BigDecimal currentPrice = prices.get(alert.getStockCode());
             if (currentPrice == null) continue;
 
             boolean active = Boolean.TRUE.equals(alert.getIsActive());
+            BigDecimal open = opens.get(alert.getStockCode());
 
             if (active) {
                 if (isTriggered(alert, currentPrice)) {
-                    sendAlert(alert, currentPrice);
+                    sendAlert(alert, currentPrice, open);
                     markTriggered(alert.getId());
                 }
             } else {
@@ -161,7 +186,7 @@ public class AlertService {
         return false;
     }
 
-    private void sendAlert(PriceAlertDto alert, BigDecimal currentPrice) {
+    private void sendAlert(PriceAlertDto alert, BigDecimal currentPrice, BigDecimal openPrice) {
         String symbolDisplay = alert.getSymbol() != null && !alert.getSymbol().isBlank()
                 ? alert.getSymbol() : alert.getStockCode();
 
@@ -176,7 +201,8 @@ public class AlertService {
 
         String label = alert.getLabel();
         if (label != null && !label.isBlank()) {
-            sb.append("\n").append(label);
+            boolean bearishFromOpen = openPrice != null && openPrice.compareTo(currentPrice) >= 0;
+            sb.append("\n").append(bearishFromOpen ? "[매수주의(음봉)] " : "").append(label);
         }
 
         String msg = sb.toString();

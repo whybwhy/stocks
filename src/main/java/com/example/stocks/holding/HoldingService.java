@@ -1,6 +1,7 @@
 package com.example.stocks.holding;
 
 import com.example.stocks.alert.TelegramService;
+import com.example.stocks.kis.DomesticStockQuote;
 import com.example.stocks.kis.KisOverseasPriceFetcher;
 import com.example.stocks.kis.KisPriceFetcher;
 import org.slf4j.Logger;
@@ -18,9 +19,10 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * 보유종목 5%/10% 수익 알림 서비스.
- * 매수가 대비 현재가가 5% 또는 10% 이상 상승하면 텔레그램 알림 발송.
- * 한번 발송된 알림은 notified_5pct / notified_10pct 플래그로 중복 방지.
+ * 보유종목 수익·손실 알림.
+ * 수익: 매수가 대비 +5% / +10% — notified_5pct / notified_10pct 로 중복 방지.
+ * 손실: 매수가 대비 -3% / -5% / -10% — notified_loss_* 로 중복 방지.
+ * 국내: 당일 고가 &gt; 전일 고가 이고 당일 고가 &gt; 현재가면 메시지에 [뚜껑] 추가 (KIS 전일고가 필드 있을 때).
  */
 @Service
 public class HoldingService {
@@ -30,7 +32,13 @@ public class HoldingService {
 
     private static final BigDecimal PCT_5  = new BigDecimal("1.05");
     private static final BigDecimal PCT_10 = new BigDecimal("1.10");
+    private static final BigDecimal LOSS_3  = new BigDecimal("0.97");
+    private static final BigDecimal LOSS_5  = new BigDecimal("0.95");
+    private static final BigDecimal LOSS_10 = new BigDecimal("0.90");
     private static final BigDecimal HUNDRED = new BigDecimal("100");
+
+    /** 보유종목 알림 전용 텔레그램 채널(또는 그룹) ID */
+    private static final String HOLDING_TELEGRAM_CHAT_ID = "8066272092";
 
     private final RestClient supabaseRestClient;
     private final TelegramService telegramService;
@@ -49,12 +57,16 @@ public class HoldingService {
 
     /**
      * 보유종목 수익 알림 체크. AlertScheduler에서 호출됨.
+     * Supabase 조회·가격 비교 모두 장중(한국 또는 미국 세션)에만 수행.
      */
     public void checkHoldings() {
+        ZonedDateTime nowKst = ZonedDateTime.now(KST);
+        if (!isKrMarketTime(nowKst) && !isUsMarketTime(nowKst)) {
+            return;
+        }
+
         List<HoldingDto> holdings = getActiveHoldings();
         if (holdings.isEmpty()) return;
-
-        ZonedDateTime nowKst = ZonedDateTime.now(KST);
 
         if (isKrMarketTime(nowKst) && kisPriceFetcher != null && kisPriceFetcher.isConfigured()) {
             List<HoldingDto> krHoldings = holdings.stream()
@@ -64,8 +76,8 @@ public class HoldingService {
                         .map(HoldingDto::getStockCode)
                         .filter(s -> s != null && !s.isBlank())
                         .collect(Collectors.toSet());
-                Map<String, BigDecimal> prices = kisPriceFetcher.fetchPrices(codes);
-                if (!prices.isEmpty()) processHoldings(krHoldings, prices);
+                Map<String, DomesticStockQuote> quotes = kisPriceFetcher.fetchQuotes(codes);
+                if (!quotes.isEmpty()) processHoldings(krHoldings, quotes);
             }
         }
 
@@ -94,37 +106,68 @@ public class HoldingService {
         if (!allPrices.isEmpty()) {
             for (HoldingDto h : usHoldings) {
                 BigDecimal price = allPrices.get(h.getStockCode().toUpperCase());
-                if (price != null) evaluateAndNotify(h, price);
+                if (price != null) evaluateAndNotify(h, price, null);
             }
         }
     }
 
-    private void processHoldings(List<HoldingDto> holdings, Map<String, BigDecimal> prices) {
+    private void processHoldings(List<HoldingDto> holdings, Map<String, DomesticStockQuote> quotes) {
         for (HoldingDto h : holdings) {
-            BigDecimal price = prices.get(h.getStockCode());
-            if (price != null) evaluateAndNotify(h, price);
+            DomesticStockQuote q = quotes.get(h.getStockCode());
+            if (q == null || q.currentPrice() == null) continue;
+            evaluateAndNotify(h, q.currentPrice(), q);
         }
     }
 
-    private void evaluateAndNotify(HoldingDto h, BigDecimal currentPrice) {
+    private void evaluateAndNotify(HoldingDto h, BigDecimal currentPrice, DomesticStockQuote quote) {
         if (h.getBuyPrice() == null || h.getBuyPrice().compareTo(BigDecimal.ZERO) <= 0) return;
 
-        BigDecimal target10 = h.getBuyPrice().multiply(PCT_10);
-        BigDecimal target5  = h.getBuyPrice().multiply(PCT_5);
-
-        boolean already10 = Boolean.TRUE.equals(h.getNotified10pct());
-        boolean already5  = Boolean.TRUE.equals(h.getNotified5pct());
-
-        if (!already10 && currentPrice.compareTo(target10) >= 0) {
-            sendHoldingAlert(h, currentPrice, 10);
-            markNotified(h.getId(), true, true);
-        } else if (!already5 && currentPrice.compareTo(target5) >= 0) {
-            sendHoldingAlert(h, currentPrice, 5);
-            markNotified(h.getId(), true, false);
+        BigDecimal buy = h.getBuyPrice();
+        if (currentPrice.compareTo(buy) >= 0) {
+            evaluateGain(h, currentPrice, buy, quote);
+        } else {
+            evaluateLoss(h, currentPrice, buy, quote);
         }
     }
 
-    private void sendHoldingAlert(HoldingDto h, BigDecimal currentPrice, int pct) {
+    private void evaluateGain(HoldingDto h, BigDecimal currentPrice, BigDecimal buy, DomesticStockQuote quote) {
+        BigDecimal target10 = buy.multiply(PCT_10);
+        BigDecimal target5 = buy.multiply(PCT_5);
+
+        boolean already10 = Boolean.TRUE.equals(h.getNotified10pct());
+        boolean already5 = Boolean.TRUE.equals(h.getNotified5pct());
+
+        if (!already10 && currentPrice.compareTo(target10) >= 0) {
+            sendHoldingGainAlert(h, currentPrice, 10, quote);
+            markGainNotified(h.getId(), true, true);
+        } else if (!already5 && currentPrice.compareTo(target5) >= 0) {
+            sendHoldingGainAlert(h, currentPrice, 5, quote);
+            markGainNotified(h.getId(), true, false);
+        }
+    }
+
+    private void evaluateLoss(HoldingDto h, BigDecimal currentPrice, BigDecimal buy, DomesticStockQuote quote) {
+        BigDecimal t10 = buy.multiply(LOSS_10);
+        BigDecimal t5 = buy.multiply(LOSS_5);
+        BigDecimal t3 = buy.multiply(LOSS_3);
+
+        boolean already10 = Boolean.TRUE.equals(h.getNotifiedLoss10pct());
+        boolean already5 = Boolean.TRUE.equals(h.getNotifiedLoss5pct());
+        boolean already3 = Boolean.TRUE.equals(h.getNotifiedLoss3pct());
+
+        if (!already10 && currentPrice.compareTo(t10) <= 0) {
+            sendHoldingLossAlert(h, currentPrice, 10, quote);
+            markLossNotified(h.getId(), 10);
+        } else if (!already5 && currentPrice.compareTo(t5) <= 0) {
+            sendHoldingLossAlert(h, currentPrice, 5, quote);
+            markLossNotified(h.getId(), 5);
+        } else if (!already3 && currentPrice.compareTo(t3) <= 0) {
+            sendHoldingLossAlert(h, currentPrice, 3, quote);
+            markLossNotified(h.getId(), 3);
+        }
+    }
+
+    private void sendHoldingGainAlert(HoldingDto h, BigDecimal currentPrice, int pct, DomesticStockQuote quote) {
         String symbolDisplay = h.getSymbol() != null && !h.getSymbol().isBlank()
                 ? h.getSymbol() : h.getStockCode();
         String flag = h.isUs() ? "🇺🇸" : "🇰🇷";
@@ -140,10 +183,45 @@ public class HoldingService {
         sb.append("매수 : ").append(currency).append(formatPrice(h.getBuyPrice(), h.isUs())).append(unit).append("\n");
         sb.append("현재 : <b>").append(currency).append(formatPrice(currentPrice, h.isUs())).append(unit).append("</b>\n");
         sb.append("수익 : <b>+").append(gainRate).append("%</b>");
+        appendDdokkeutMemo(sb, quote, currentPrice);
 
-        telegramService.broadcast(sb.toString());
+        telegramService.sendToChat(HOLDING_TELEGRAM_CHAT_ID, sb.toString());
         log.info("HOLDING ALERT +{}%: {} buy={} current={} gain={}%",
                 pct, symbolDisplay, h.getBuyPrice(), currentPrice, gainRate);
+    }
+
+    private void sendHoldingLossAlert(HoldingDto h, BigDecimal currentPrice, int pct, DomesticStockQuote quote) {
+        String symbolDisplay = h.getSymbol() != null && !h.getSymbol().isBlank()
+                ? h.getSymbol() : h.getStockCode();
+        String flag = h.isUs() ? "🇺🇸" : "🇰🇷";
+        String currency = h.isUs() ? "$" : "";
+        String unit = h.isUs() ? "" : "원";
+
+        BigDecimal gainRate = currentPrice.subtract(h.getBuyPrice())
+                .divide(h.getBuyPrice(), 4, RoundingMode.HALF_UP)
+                .multiply(HUNDRED).setScale(2, RoundingMode.HALF_UP);
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(flag).append(" <b>").append(symbolDisplay).append("</b> 📉 -").append(pct).append("%\n");
+        sb.append("매수 : ").append(currency).append(formatPrice(h.getBuyPrice(), h.isUs())).append(unit).append("\n");
+        sb.append("현재 : <b>").append(currency).append(formatPrice(currentPrice, h.isUs())).append(unit).append("</b>\n");
+        sb.append("수익 : <b>").append(gainRate).append("%</b>");
+        appendDdokkeutMemo(sb, quote, currentPrice);
+
+        telegramService.sendToChat(HOLDING_TELEGRAM_CHAT_ID, sb.toString());
+        log.info("HOLDING ALERT -{}%: {} buy={} current={} gain={}%",
+                pct, symbolDisplay, h.getBuyPrice(), currentPrice, gainRate);
+    }
+
+    /**
+     * 당일 고가 &gt; 전일 고가 이고, 당일 고가 &gt; 현재가 일 때 [뚜껑] (국내·시세 필드 있을 때만).
+     */
+    private static void appendDdokkeutMemo(StringBuilder sb, DomesticStockQuote quote, BigDecimal currentPrice) {
+        if (quote == null || currentPrice == null) return;
+        if (quote.dayHigh() == null || quote.prevDayHigh() == null) return;
+        if (quote.dayHigh().compareTo(quote.prevDayHigh()) <= 0) return;
+        if (quote.dayHigh().compareTo(currentPrice) <= 0) return;
+        sb.append("\n[뚜껑]");
     }
 
     private String formatPrice(BigDecimal price, boolean isUs) {
@@ -211,7 +289,7 @@ public class HoldingService {
         }
     }
 
-    private void markNotified(Long id, boolean notified5, boolean notified10) {
+    private void markGainNotified(Long id, boolean notified5, boolean notified10) {
         try {
             StringBuilder body = new StringBuilder("{");
             body.append("\"notified_5pct\": ").append(notified5);
@@ -230,7 +308,33 @@ public class HoldingService {
                     .retrieve()
                     .toBodilessEntity();
         } catch (Exception e) {
-            log.error("Failed to mark holding {} notified: {}", id, e.getMessage());
+            log.error("Failed to mark holding {} gain notified: {}", id, e.getMessage());
+        }
+    }
+
+    /** level 3 → loss_3만, 5 → 3+5, 10 → 3+5+10 (한 번에 깊게 빠진 경우 상위 구간만 알림). */
+    private void markLossNotified(Long id, int level) {
+        try {
+            StringBuilder body = new StringBuilder("{\"notified_loss_3pct\": true");
+            if (level >= 5) {
+                body.append(", \"notified_loss_5pct\": true");
+            }
+            if (level >= 10) {
+                body.append(", \"notified_loss_10pct\": true");
+            }
+            body.append("}");
+
+            supabaseRestClient.patch()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/rest/v1/holdings")
+                            .queryParam("id", "eq." + id)
+                            .build())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body.toString())
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (Exception e) {
+            log.error("Failed to mark holding {} loss notified: {}", id, e.getMessage());
         }
     }
 }

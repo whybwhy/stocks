@@ -256,3 +256,70 @@ WHERE NOT EXISTS (
   SELECT 1 FROM public.price_alerts pa
   WHERE pa.symbol = v.symbol AND pa.target_price = v.target_price::numeric(18,2)
 );
+
+-- ─────────────────────────────────────────────
+-- 📌 차트보이 메모 배치 2026-03-25 (국내)
+-- 인텔리안테크(189300): 목표가 미지정 — SQL 파일 주석 참고
+-- ─────────────────────────────────────────────
+INSERT INTO public.price_alerts (market, stock_code, symbol, target_price, condition, label, source)
+SELECT v.market, v.stock_code, v.symbol, v.target_price::numeric(18,2), v.condition, v.label, 'CHARTBOY'
+FROM (VALUES
+  ('KR', '066970', '엘앤에프', 129000, 'ABOVE', '129,000원 돌파 시부터 (언덕 넘을 때마다 1주씩 매수 가능)'),
+  ('KR', '066970', '엘앤에프', 149000, 'ABOVE', '149,000원 돌파 시 메인 매수 타점'),
+  ('KR', '102710', '이엔에프테크놀로지', 62000, 'ABOVE', '62,000원 돌파 시 / 61,900·62,000원 가운데자리'),
+  ('KR', '123330', '제닉', 28000, 'ABOVE', '28,000원 돌파 시 (이미 3월 12일 매수 종목)'),
+  ('KR', '228850', '레이언스', 6480, 'ABOVE', '6,480원 돌파 시 / 가운데자리 확실·년봉 하자 / 소액 단타만'),
+  ('KR', '091700', '파트론', 8710, 'ABOVE', '8,710원 언덕 (우하향 차트·모양 참고)'),
+  ('KR', '091700', '파트론', 8730, 'ABOVE', '8,730원 언덕 (우하향 차트·모양 참고)')
+) AS v(market, stock_code, symbol, target_price, condition, label)
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.price_alerts pa
+  WHERE pa.symbol = v.symbol AND pa.target_price = v.target_price::numeric(18,2)
+);
+
+-- ─────────────────────────────────────────────
+-- 📌 차트보이 우주·항공 메모 2026-03-26
+-- 미삽입: HVM(295310), 컨텍(451760), AP위성(211270) — 목표가 숫자 미기재
+-- ─────────────────────────────────────────────
+INSERT INTO public.price_alerts (market, stock_code, symbol, target_price, condition, label, source)
+SELECT v.market, v.stock_code, v.symbol, v.target_price::numeric(18,2), v.condition, v.label, 'CHARTBOY'
+FROM (VALUES
+  ('KR', '417010', '나노팀', 11560, 'ABOVE', '[스페이스X] 3/11 고점 11,560원 또는 수요일 고점 11,900원 — 동그란 언덕 고점 돌파 시 매수 적기'),
+  ('KR', '417010', '나노팀', 11900, 'ABOVE', '[스페이스X] 수요일 고점 11,900원 — 동그란 언덕 패턴 고점 돌파 시 매수'),
+  ('KR', '474170', '루미르', 16610, 'ABOVE', '[스페이스X] 16,610~16,860원대 — 언덕보다 낮은 자리 후 재돌파 선호 / 스페이스X 상장 일정·전고점 상승 기대'),
+  ('KR', '474170', '루미르', 16860, 'ABOVE', '[스페이스X] 16,860원 — 루미르 구간 상단 / 재돌파·스페이스X 모멘텀 참고'),
+  ('KR', '099320', '세트렉아이', 210000, 'ABOVE', '[스페이스X] 1차 210,000원 — 월봉 쌍바닥·언덕 돌파 확인 후 신규 (미리 매수 X)'),
+  ('KR', '099320', '세트렉아이', 224000, 'ABOVE', '[스페이스X] 2차 224,000원 — 언덕(고점) 돌파 후 신규 진입'),
+  ('KR', '440620', '웨이비스', 2600, 'ABOVE', '[스페이스X] 2,600원 — 10일 횡보 후 빵빵빵 전고점 돌파 시 신고가 매매'),
+  ('KR', '440620', '웨이비스', 2900, 'ABOVE', '[스페이스X] 2,900원 — 전고점 돌파·신고가 매매 관점'),
+  ('KR', '462350', '이노스페이스', 19450, 'ABOVE', '[스페이스X] 19,450원 — 동그란 언덕 고점 돌파. 일목 구름대 아래 저항·소액 권장'),
+  ('KR', '361390', '제노코', 33300, 'ABOVE', '[스페이스X] 33,300원 — 빵빵빵 돌파 베스트, 눌림 후 언덕 돌파 시점 주목')
+) AS v(market, stock_code, symbol, target_price, condition, label)
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.price_alerts pa
+  WHERE pa.symbol = v.symbol AND pa.target_price = v.target_price::numeric(18,2)
+);
+
+-- ─────────────────────────────────────────────
+-- 📌 차트 메모 2026-03-27
+-- 미삽입: 솔루스첨단소재(336370), 신흥에스이씨(243840) — 목표가 숫자 미기재
+-- 나노신소재 77,000·동화 11,450 기존과 동일 금액이면 NOT EXISTS 로 스킵
+-- ─────────────────────────────────────────────
+INSERT INTO public.price_alerts (market, stock_code, symbol, target_price, condition, label, source)
+SELECT v.market, v.stock_code, v.symbol, v.target_price::numeric(18,2), v.condition, v.label, 'CHARTBOY'
+FROM (VALUES
+  ('KR', '005490', '포스코홀딩스', 342000, 'ABOVE', '월봉 바닥 3봉·작년 7월 고점 342,000원 돌파 핵심 타점'),
+  ('KR', '005490', '포스코홀딩스', 373000, 'ABOVE', '갭 돌파 시 373,000원 매수 가능'),
+  ('KR', '121600', '나노신소재', 77000, 'ABOVE', '3봉 패턴·77,000원 미돌파 시 관망'),
+  ('KR', '025900', '동화기업', 11450, 'ABOVE', '가짜 돌파 구간 이탈 후 11,450원 제대로 돌파 시 신규 타점'),
+  ('KR', '278280', '천보', 49900, 'ABOVE', '1차: 동그란 언덕 49,900원 돌파 (구름대 아래)'),
+  ('KR', '278280', '천보', 65200, 'ABOVE', '2차 보수: 일목 구름대 상단 65,200원 선호'),
+  ('KR', '450080', '에코프로머티', 75100, 'ABOVE', 'ABC 타점 75,100원·적자·소액·바닥 확인 권장'),
+  ('KR', '222080', '씨아이에스', 15110, 'ABOVE', '2026년 1월 월봉 이평 3개 동시 잡아먹음·직전 언덕 15,110원 돌파 시 보유·추가 (CIS)')
+) AS v(market, stock_code, symbol, target_price, condition, label)
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.price_alerts pa
+  WHERE pa.symbol = v.symbol AND pa.target_price = v.target_price::numeric(18,2)
+);
+
+

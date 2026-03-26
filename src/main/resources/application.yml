@@ -88,7 +88,7 @@ fred:
 economic-event:
   enabled: ${ECONOMIC_EVENT_ENABLED:true}
 
-# 테마 시세 알림 (평일 3회: 08:30 / 10:00 / 15:40)
+# 테마 시세 알림 (평일 2회: 10:00 / 15:20)
 # false 로 설정 시 비활성화 (환경변수: THEME_ENABLED)
 theme:
   enabled: ${THEME_ENABLED:true}

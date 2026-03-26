@@ -36,6 +36,25 @@ public class TelegramService {
         return botToken != null && !botToken.isBlank() && !chatIds.isEmpty();
     }
 
+    public boolean hasBotToken() {
+        return botToken != null && !botToken.isBlank();
+    }
+
+    /**
+     * 지정한 chat_id 한 곳에만 발송 (보유종목 등 전용 채널용). bot-token 만 있으면 됨.
+     */
+    public void sendToChat(String chatId, String text) {
+        if (!hasBotToken()) {
+            log.warn("Telegram sendToChat skipped: bot-token empty.");
+            return;
+        }
+        if (chatId == null || chatId.isBlank()) {
+            log.warn("Telegram sendToChat skipped: chatId empty.");
+            return;
+        }
+        sendMessage(chatId.trim(), text);
+    }
+
     /**
      * 설정된 모든 chat-ids 에 메시지 발송.
      */

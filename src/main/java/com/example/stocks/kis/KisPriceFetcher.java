@@ -49,7 +49,19 @@ public class KisPriceFetcher {
      * @return stock_code -> 현재가 (실패 시 해당 종목 제외)
      */
     public Map<String, BigDecimal> fetchPrices(Set<String> stockCodes) {
+        Map<String, DomesticStockQuote> quotes = fetchQuotes(stockCodes);
         Map<String, BigDecimal> result = new HashMap<>();
+        for (Map.Entry<String, DomesticStockQuote> e : quotes.entrySet()) {
+            result.put(e.getKey(), e.getValue().currentPrice());
+        }
+        return result;
+    }
+
+    /**
+     * 국내 주식 현재가·시가·당일고가·전일고가 조회 (inquire-price output).
+     */
+    public Map<String, DomesticStockQuote> fetchQuotes(Set<String> stockCodes) {
+        Map<String, DomesticStockQuote> result = new HashMap<>();
         if (stockCodes == null || stockCodes.isEmpty()) return result;
         String token = tokenService.getAccessToken();
         if (token == null) return result;
@@ -58,9 +70,9 @@ public class KisPriceFetcher {
             if (code == null || !isValidStockCode(code)) continue;
             String normalized = code.trim();
             try {
-                BigDecimal price = fetchSinglePrice(token, normalized);
-                if (price != null && price.compareTo(BigDecimal.ZERO) > 0) {
-                    result.put(normalized, price);
+                DomesticStockQuote q = fetchSingleQuote(token, normalized);
+                if (q != null && q.currentPrice() != null && q.currentPrice().compareTo(BigDecimal.ZERO) > 0) {
+                    result.put(normalized, q);
                 }
             } catch (Exception e) {
                 log.warn("KIS price fetch failed for {}: {}", normalized, e.getMessage());
@@ -73,7 +85,7 @@ public class KisPriceFetcher {
         return code != null && code.trim().length() == 6 && SIX_DIGIT.matcher(code.trim()).matches();
     }
 
-    private BigDecimal fetchSinglePrice(String token, String fidInputIscd) {
+    private DomesticStockQuote fetchSingleQuote(String token, String fidInputIscd) {
         try {
             String url = "/uapi/domestic-stock/v1/quotations/inquire-price"
                     + "?FID_COND_MRKT_DIV_CODE=" + KisApiConstants.FID_COND_MRKT_DIV_CODE
@@ -104,10 +116,33 @@ public class KisPriceFetcher {
             }
             String stckPrpr = output.path("stck_prpr").asText(null);
             if (stckPrpr == null || stckPrpr.isBlank()) return null;
-            return new BigDecimal(stckPrpr.replace(",", ""));
+            BigDecimal current = new BigDecimal(stckPrpr.replace(",", ""));
+            BigDecimal open = parseOptionalPrice(output.path("stck_oprc").asText(null));
+            BigDecimal dayHigh = parseOptionalPrice(output.path("stck_hgpr").asText(null));
+            BigDecimal prevDayHigh = firstPresentPrice(output, "prdy_hgpr", "stck_prdy_hgpr");
+            return new DomesticStockQuote(current, open, dayHigh, prevDayHigh);
         } catch (Exception e) {
-            log.warn("KIS fetchSinglePrice failed for {}: {}", fidInputIscd, e.getMessage());
+            log.warn("KIS fetchSingleQuote failed for {}: {}", fidInputIscd, e.getMessage());
             return null;
         }
+    }
+
+    private static BigDecimal parseOptionalPrice(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        try {
+            BigDecimal v = new BigDecimal(raw.replace(",", ""));
+            if (v.compareTo(BigDecimal.ZERO) <= 0) return null;
+            return v;
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static BigDecimal firstPresentPrice(JsonNode output, String... fieldNames) {
+        for (String name : fieldNames) {
+            BigDecimal v = parseOptionalPrice(output.path(name).asText(null));
+            if (v != null) return v;
+        }
+        return null;
     }
 }

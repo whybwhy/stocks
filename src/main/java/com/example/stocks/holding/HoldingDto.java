@@ -22,6 +22,9 @@ public class HoldingDto {
     private BigDecimal profitRate;
     private Boolean notified5pct;
     private Boolean notified10pct;
+    private Boolean notifiedLoss3pct;
+    private Boolean notifiedLoss5pct;
+    private Boolean notifiedLoss10pct;
     private String createdAt;
 
     public Long getId() { return id; }
@@ -68,6 +71,18 @@ public class HoldingDto {
     @JsonProperty("notified_10pct")
     public Boolean getNotified10pct() { return notified10pct; }
     public void setNotified10pct(Boolean notified10pct) { this.notified10pct = notified10pct; }
+
+    @JsonProperty("notified_loss_3pct")
+    public Boolean getNotifiedLoss3pct() { return notifiedLoss3pct; }
+    public void setNotifiedLoss3pct(Boolean notifiedLoss3pct) { this.notifiedLoss3pct = notifiedLoss3pct; }
+
+    @JsonProperty("notified_loss_5pct")
+    public Boolean getNotifiedLoss5pct() { return notifiedLoss5pct; }
+    public void setNotifiedLoss5pct(Boolean notifiedLoss5pct) { this.notifiedLoss5pct = notifiedLoss5pct; }
+
+    @JsonProperty("notified_loss_10pct")
+    public Boolean getNotifiedLoss10pct() { return notifiedLoss10pct; }
+    public void setNotifiedLoss10pct(Boolean notifiedLoss10pct) { this.notifiedLoss10pct = notifiedLoss10pct; }
 
     @JsonProperty("created_at")
     public String getCreatedAt() { return createdAt; }

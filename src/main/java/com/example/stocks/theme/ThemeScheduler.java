@@ -13,11 +13,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
- * 테마 시세를 하루 3회 텔레그램으로 발송.
+ * 테마 시세를 평일 2회 텔레그램으로 발송.
  *
- * 08:30 - 전일 기준 테마 등락률 (장 시작 전 브리핑)
  * 10:00 - 장 초반 실시간 테마 등락률
- * 15:40 - 당일 최종 테마 등락률 (마감 정리)
+ * 15:20 - 당일 테마 등락률 (마감 직전 정리)
  *
  * 비활성화: theme.enabled=false
  */
@@ -38,13 +37,7 @@ public class ThemeScheduler {
     public ThemeScheduler(NaverThemeFetcher themeFetcher, TelegramService telegramService) {
         this.themeFetcher = themeFetcher;
         this.telegramService = telegramService;
-        log.info("[테마스케줄러] 활성화 (08:30 / 10:00 / 15:40)");
-    }
-
-    /** 08:30 - 장 시작 전 브리핑 (전일 기준) */
-    @Scheduled(cron = "0 30 8 * * MON-FRI", zone = "Asia/Seoul")
-    public void morningBriefing() {
-        send("📋 장 시작 전 브리핑 (전일 기준)");
+        log.info("[테마스케줄러] 활성화 (10:00 / 15:20)");
     }
 
     /** 10:00 - 장 초반 실시간 */
@@ -53,10 +46,10 @@ public class ThemeScheduler {
         send("📊 오전장 테마 현황 (실시간)");
     }
 
-    /** 15:40 - 마감 정리 */
-    @Scheduled(cron = "0 40 15 * * MON-FRI", zone = "Asia/Seoul")
+    /** 15:20 - 마감 직전 정리 */
+    @Scheduled(cron = "0 20 15 * * MON-FRI", zone = "Asia/Seoul")
     public void closingBriefing() {
-        send("🔔 마감 테마 정리 (당일 최종)");
+        send("🔔 마감 전 테마 정리 (당일)");
     }
 
     private void send(String title) {
@@ -77,11 +70,12 @@ public class ThemeScheduler {
     /**
      * 텔레그램 메시지 형식:
      *
-     * 📋 장 시작 전 브리핑 (전일 기준) | 02/27 08:30
+     * 📊 오전장 테마 현황 (실시간) | 02/27 10:00
      * ─────────────────────
      *  1. 2026 하반기 신규상장 +34.05% (3일 -0.70%)
-     *     ▲4 ─0 ▼5 | 레이저쎌.. · 카카오뱅크..
+     *     ▲4 ─0 ▼5
      *  2. ...
+     * (구성 종목명·주도주는 표시하지 않음)
      */
     private String buildMessage(String title, List<ThemeDto> themes) {
         ZonedDateTime now = ZonedDateTime.now(KST);
@@ -107,15 +101,10 @@ public class ThemeScheduler {
             }
             sb.append("\n");
 
-            // 상승/보합/하락 + 주도주
+            // 상승/보합/하락 (구성 종목명은 미표시)
             sb.append("     ▲").append(t.getUpCount())
               .append(" ─").append(t.getSteadyCount())
               .append(" ▼").append(t.getDownCount());
-
-            String leaders = buildLeaders(t.getLeader1(), t.getLeader2());
-            if (!leaders.isBlank()) {
-                sb.append("  ").append(leaders);
-            }
             sb.append("\n");
 
             rank++;
@@ -130,10 +119,4 @@ public class ThemeScheduler {
         return rate;
     }
 
-    private String buildLeaders(String l1, String l2) {
-        if ((l1 == null || l1.isBlank()) && (l2 == null || l2.isBlank())) return "";
-        if (l2 == null || l2.isBlank()) return l1;
-        if (l1 == null || l1.isBlank()) return l2;
-        return l1 + " · " + l2;
-    }
 }
