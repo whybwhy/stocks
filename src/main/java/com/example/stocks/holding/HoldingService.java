@@ -20,12 +20,17 @@ import java.util.stream.Collectors;
 
 /**
  * 보유종목 수익·손실 알림.
- * 수익: 매수가 대비 +5% / +10% — notified_5pct / notified_10pct 로 중복 방지.
- * 손실: 매수가 대비 -3% / -5% / -10% — notified_loss_* 로 중복 방지.
+ * 수익: 매수가 대비 +5% / +10% — {@link #HOLDING_GAIN_ALERTS_ENABLED} 가 false 이면 비활성.
+ * 손실: 매수가 대비 -3% / -5% / -10% — {@link #HOLDING_LOSS_ALERTS_ENABLED} 가 false 이면 비활성.
  * 국내: 당일 고가 &gt; 전일 고가 이고 당일 고가 &gt; 현재가면 메시지에 [뚜껑] 추가 (KIS 전일고가 필드 있을 때).
  */
 @Service
 public class HoldingService {
+
+    /** false: +5% / +10% 수익 텔레그램 알림 비활성. */
+    private static final boolean HOLDING_GAIN_ALERTS_ENABLED = false;
+    /** false: -3% / -5% / -10% 손실 텔레그램 알림 비활성. */
+    private static final boolean HOLDING_LOSS_ALERTS_ENABLED = false;
 
     private static final Logger log = LoggerFactory.getLogger(HoldingService.class);
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
@@ -60,6 +65,10 @@ public class HoldingService {
      * Supabase 조회·가격 비교 모두 장중(한국 또는 미국 세션)에만 수행.
      */
     public void checkHoldings() {
+        if (!HOLDING_GAIN_ALERTS_ENABLED && !HOLDING_LOSS_ALERTS_ENABLED) {
+            return;
+        }
+
         ZonedDateTime nowKst = ZonedDateTime.now(KST);
         if (!isKrMarketTime(nowKst) && !isUsMarketTime(nowKst)) {
             return;
@@ -131,6 +140,9 @@ public class HoldingService {
     }
 
     private void evaluateGain(HoldingDto h, BigDecimal currentPrice, BigDecimal buy, DomesticStockQuote quote) {
+        if (!HOLDING_GAIN_ALERTS_ENABLED) {
+            return;
+        }
         BigDecimal target10 = buy.multiply(PCT_10);
         BigDecimal target5 = buy.multiply(PCT_5);
 
@@ -147,6 +159,9 @@ public class HoldingService {
     }
 
     private void evaluateLoss(HoldingDto h, BigDecimal currentPrice, BigDecimal buy, DomesticStockQuote quote) {
+        if (!HOLDING_LOSS_ALERTS_ENABLED) {
+            return;
+        }
         BigDecimal t10 = buy.multiply(LOSS_10);
         BigDecimal t5 = buy.multiply(LOSS_5);
         BigDecimal t3 = buy.multiply(LOSS_3);

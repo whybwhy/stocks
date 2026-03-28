@@ -10,6 +10,9 @@ public final class KisApiConstants {
     // ─── 주식 현재가 ───
     /** 주식현재가 REST (국내) */
     public static final String TR_ID_PRICE = "FHKST01010100";
+    /** 국내주식 기간별시세(일) — 전일·전전일 시·종가 */
+    public static final String TR_ID_DAILY_ITEM_CHART = "FHKST03010100";
+    public static final String DAILY_ITEM_CHART_URL = "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice";
     /** 시장구분: J = 주식전체(코스피+코스닥) */
     public static final String FID_COND_MRKT_DIV_CODE = "J";
     /** 종목코드 6자리 패턴 */

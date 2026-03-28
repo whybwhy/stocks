@@ -15,8 +15,9 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import com.example.stocks.kis.DomesticStockQuote;
-import com.example.stocks.kis.KisPriceFetcher;
+import com.example.stocks.kis.KisDomesticDailyBarFetcher;
 import com.example.stocks.kis.KisOverseasPriceFetcher;
+import com.example.stocks.kis.KisPriceFetcher;
 
 /**
  * Supabase에서 알람을 읽고, 국내/해외 현재가와 비교 후:
@@ -35,15 +36,18 @@ public class AlertService {
     private final TelegramService telegramService;
     private final KisPriceFetcher kisPriceFetcher;
     private final KisOverseasPriceFetcher overseasPriceFetcher;
+    private final KisDomesticDailyBarFetcher domesticDailyBarFetcher;
 
     public AlertService(@Qualifier("supabaseRestClient") RestClient supabaseRestClient,
                         TelegramService telegramService,
                         KisPriceFetcher kisPriceFetcher,
-                        KisOverseasPriceFetcher overseasPriceFetcher) {
+                        KisOverseasPriceFetcher overseasPriceFetcher,
+                        KisDomesticDailyBarFetcher domesticDailyBarFetcher) {
         this.supabaseRestClient = supabaseRestClient;
         this.telegramService = telegramService;
         this.kisPriceFetcher = kisPriceFetcher;
         this.overseasPriceFetcher = overseasPriceFetcher;
+        this.domesticDailyBarFetcher = domesticDailyBarFetcher;
     }
 
     /**
@@ -203,6 +207,14 @@ public class AlertService {
         if (label != null && !label.isBlank()) {
             boolean bearishFromOpen = openPrice != null && openPrice.compareTo(currentPrice) >= 0;
             sb.append("\n").append(bearishFromOpen ? "[매수주의(음봉)] " : "").append(label);
+        }
+
+        if (alert.isKr() && domesticDailyBarFetcher != null && domesticDailyBarFetcher.isConfigured()) {
+            String candleLine = domesticDailyBarFetcher.buildThreeDayCandleLine(
+                    alert.getStockCode(), openPrice, currentPrice);
+            if (candleLine != null && !candleLine.isBlank()) {
+                sb.append("\n").append(candleLine);
+            }
         }
 
         String msg = sb.toString();
