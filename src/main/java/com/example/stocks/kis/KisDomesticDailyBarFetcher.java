@@ -47,7 +47,7 @@ public class KisDomesticDailyBarFetcher {
     }
 
     /**
-     * "양봉 (전전일) -> 도지 (전일) -> 양봉 (오늘)" 형식. 실패 시 빈 문자열.
+     * "양봉 (전전일) -> 도지 (전일) -> 음봉 (오늘) => 빵 빵 뿡" 형식 (양봉·도지=빵, 음봉=뿡). 실패 시 빈 문자열.
      *
      * @param todayOpen   당일 시가 (inquire-price stck_oprc), 없으면 일봉 첫 행 시가 시도
      * @param currentPrice 당일 종가 대용(조회 시점 현재가)
@@ -86,7 +86,28 @@ public class KisDomesticDailyBarFetcher {
         String w1 = candleWord(d1.open, d1.close);
         if (w2.isEmpty() || w1.isEmpty() || todayWord.isEmpty()) return "";
 
-        return w2 + " (전전일) -> " + w1 + " (전일) -> " + todayWord + " (오늘)";
+        String sounds = threeBreadSounds(w2, w1, todayWord);
+        if (sounds.isEmpty()) return "";
+
+        return w2 + " (전진일) -> " + w1 + " (전일) -> " + todayWord + " (오늘) => " + sounds;
+    }
+
+    /** 양봉·도지 → 빵, 음봉 → 뿡. 전전일·전일·오늘 순, 공백 구분. */
+    private static String threeBreadSounds(String w2, String w1, String todayWord) {
+        String s2 = candleToBreadSound(w2);
+        String s1 = candleToBreadSound(w1);
+        String s0 = candleToBreadSound(todayWord);
+        if (s2.isEmpty() || s1.isEmpty() || s0.isEmpty()) return "";
+        return s2 + " " + s1 + " " + s0;
+    }
+
+    private static String candleToBreadSound(String candleWord) {
+        return switch (candleWord) {
+            case "양봉" -> "빵";
+            case "음봉" -> "뿡";
+            case "도지" -> "빵";
+            default -> "";
+        };
     }
 
     static String candleWord(BigDecimal open, BigDecimal close) {

@@ -206,7 +206,7 @@ public class AlertService {
         String label = alert.getLabel();
         if (label != null && !label.isBlank()) {
             boolean bearishFromOpen = openPrice != null && openPrice.compareTo(currentPrice) >= 0;
-            sb.append("\n").append(bearishFromOpen ? "[매수주의(음봉)] " : "").append(label);
+            sb.append("\n").append(bearishFromOpen ? "❌ 음봉" : "").append(label);
         }
 
         if (alert.isKr() && domesticDailyBarFetcher != null && domesticDailyBarFetcher.isConfigured()) {
@@ -214,6 +214,9 @@ public class AlertService {
                     alert.getStockCode(), openPrice, currentPrice);
             if (candleLine != null && !candleLine.isBlank()) {
                 sb.append("\n").append(candleLine);
+                if (candleLine.contains("빵 빵 빵")) {
+                    sb.append("\n\n<b>📋 체크 리스트</b>: 각도, B파, 빵빵빵, 연월주일봉, 240일선 위, 전고점, 가운데자리, 이평선, N패턴+거래량");
+                }
             }
         }
 
