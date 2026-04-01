@@ -206,7 +206,7 @@ public class AlertService {
         String label = alert.getLabel();
         if (label != null && !label.isBlank()) {
             boolean bearishFromOpen = openPrice != null && openPrice.compareTo(currentPrice) >= 0;
-            sb.append("\n").append(bearishFromOpen ? "❌ 음봉" : "").append(label);
+            sb.append("\n").append(bearishFromOpen ? "[❌ 음봉]" : "[양봉 빵빵빵 확인]").append(label);
         }
 
         if (alert.isKr() && domesticDailyBarFetcher != null && domesticDailyBarFetcher.isConfigured()) {
