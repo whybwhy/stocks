@@ -209,16 +209,17 @@ public class AlertService {
             sb.append("\n").append(bearishFromOpen ? "[❌ 음봉]" : "[양봉 빵빵빵 확인]").append(label);
         }
 
-        if (alert.isKr() && domesticDailyBarFetcher != null && domesticDailyBarFetcher.isConfigured()) {
-            String candleLine = domesticDailyBarFetcher.buildThreeDayCandleLine(
-                    alert.getStockCode(), openPrice, currentPrice);
-            if (candleLine != null && !candleLine.isBlank()) {
-                sb.append("\n").append(candleLine);
-                if (candleLine.contains("빵 빵 빵")) {
-                    sb.append("\n\n<b>📋 체크 리스트</b>: 각도, B파, 빵빵빵, 연월주일봉, 240일선 위, 전고점, 가운데자리, 이평선, N패턴+거래량");
-                }
-            }
-        }
+        // TODO: 빵빵빵 데이터 정상화 후 주석 해제
+        // if (alert.isKr() && domesticDailyBarFetcher != null && domesticDailyBarFetcher.isConfigured()) {
+        //     String candleLine = domesticDailyBarFetcher.buildThreeDayCandleLine(
+        //             alert.getStockCode(), openPrice, currentPrice);
+        //     if (candleLine != null && !candleLine.isBlank()) {
+        //         sb.append("\n").append(candleLine);
+        //         if (candleLine.contains("빵 빵 빵")) {
+        //             sb.append("\n\n<b>📋 체크 리스트</b>: 각도, B파, 빵빵빵, 연월주일봉, 240일선 위, 전고점, 가운데자리, 이평선, N패턴+거래량");
+        //         }
+        //     }
+        // }
 
         String msg = sb.toString();
 
