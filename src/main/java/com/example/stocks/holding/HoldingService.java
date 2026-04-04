@@ -45,6 +45,10 @@ public class HoldingService {
     /** 보유종목 알림 전용 텔레그램 채널(또는 그룹) ID */
     private static final String HOLDING_TELEGRAM_CHAT_ID = "8066272092";
 
+    /** 일별 수익 알림 추적: "날짜_holdingId_pct" 형태로 당일 발송 여부 기록. 날짜 변경 시 자동 초기화. */
+    private final Set<String> dailyGainNotified = new HashSet<>();
+    private LocalDate dailyGainDate;
+
     private final RestClient supabaseRestClient;
     private final TelegramService telegramService;
     private final KisPriceFetcher kisPriceFetcher;
@@ -58,6 +62,85 @@ public class HoldingService {
         this.telegramService = telegramService;
         this.kisPriceFetcher = kisPriceFetcher;
         this.overseasPriceFetcher = overseasPriceFetcher;
+    }
+
+    /**
+     * 매수가 대비 +5%/+10% 일별 알림. HoldingGainScheduler(15분 간격)에서 호출.
+     * 하루에 각 종목·퍼센트별 한 번만 발송, 다음 날 자동 리셋.
+     */
+    public void checkDailyGains() {
+        ZonedDateTime nowKst = ZonedDateTime.now(KST);
+        LocalDate today = nowKst.toLocalDate();
+
+        // 날짜가 바뀌면 추적 셋 초기화
+        if (!today.equals(dailyGainDate)) {
+            dailyGainNotified.clear();
+            dailyGainDate = today;
+        }
+
+        if (!isKrMarketTime(nowKst) && !isUsMarketTime(nowKst)) return;
+
+        List<HoldingDto> holdings = getActiveHoldings();
+        if (holdings.isEmpty()) return;
+
+        if (isKrMarketTime(nowKst) && kisPriceFetcher != null && kisPriceFetcher.isConfigured()) {
+            List<HoldingDto> krHoldings = holdings.stream()
+                    .filter(HoldingDto::isKr).collect(Collectors.toList());
+            if (!krHoldings.isEmpty()) {
+                Set<String> codes = krHoldings.stream()
+                        .map(HoldingDto::getStockCode)
+                        .filter(s -> s != null && !s.isBlank())
+                        .collect(Collectors.toSet());
+                Map<String, DomesticStockQuote> quotes = kisPriceFetcher.fetchQuotes(codes);
+                if (!quotes.isEmpty()) {
+                    for (HoldingDto h : krHoldings) {
+                        DomesticStockQuote q = quotes.get(h.getStockCode());
+                        if (q == null || q.currentPrice() == null) continue;
+                        evaluateDailyGain(h, q.currentPrice(), q);
+                    }
+                }
+            }
+        }
+
+        if (isUsMarketTime(nowKst) && overseasPriceFetcher != null && overseasPriceFetcher.isConfigured()) {
+            List<HoldingDto> usHoldings = holdings.stream()
+                    .filter(HoldingDto::isUs).collect(Collectors.toList());
+            if (usHoldings.isEmpty()) return;
+
+            Map<String, List<HoldingDto>> byExchange = usHoldings.stream()
+                    .collect(Collectors.groupingBy(h -> h.getMarket().toUpperCase()));
+            Map<String, BigDecimal> allPrices = new HashMap<>();
+            for (Map.Entry<String, List<HoldingDto>> entry : byExchange.entrySet()) {
+                Set<String> symbols = entry.getValue().stream()
+                        .map(h -> h.getStockCode().toUpperCase())
+                        .collect(Collectors.toSet());
+                allPrices.putAll(overseasPriceFetcher.fetchPrices(entry.getKey(), symbols));
+            }
+            for (HoldingDto h : usHoldings) {
+                BigDecimal price = allPrices.get(h.getStockCode().toUpperCase());
+                if (price != null) evaluateDailyGain(h, price, null);
+            }
+        }
+    }
+
+    private void evaluateDailyGain(HoldingDto h, BigDecimal currentPrice, DomesticStockQuote quote) {
+        if (h.getBuyPrice() == null || h.getBuyPrice().compareTo(BigDecimal.ZERO) <= 0) return;
+
+        BigDecimal buy = h.getBuyPrice();
+        BigDecimal target10 = buy.multiply(PCT_10);
+        BigDecimal target5 = buy.multiply(PCT_5);
+
+        String key10 = h.getId() + "_10";
+        String key5 = h.getId() + "_5";
+
+        if (!dailyGainNotified.contains(key10) && currentPrice.compareTo(target10) >= 0) {
+            sendHoldingGainAlert(h, currentPrice, 10, quote);
+            dailyGainNotified.add(key10);
+            dailyGainNotified.add(key5); // 10% 도달 시 5%도 발송 불필요
+        } else if (!dailyGainNotified.contains(key5) && currentPrice.compareTo(target5) >= 0) {
+            sendHoldingGainAlert(h, currentPrice, 5, quote);
+            dailyGainNotified.add(key5);
+        }
     }
 
     /**

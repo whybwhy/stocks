@@ -32,6 +32,10 @@ public class AlertService {
     private static final Logger log = LoggerFactory.getLogger(AlertService.class);
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
+    /** 갭 상승(전일종가 < 오늘시가) 일별 알림 추적. 날짜 변경 시 자동 초기화. */
+    private final Set<String> gapUpNotifiedCodes = new HashSet<>();
+    private LocalDate gapUpDate;
+
     private final RestClient supabaseRestClient;
     private final TelegramService telegramService;
     private final KisPriceFetcher kisPriceFetcher;
@@ -77,14 +81,15 @@ public class AlertService {
                         }
                     }
                     processAlerts(krAlerts, prices, opens);
+                    checkGapUp(krAlerts, quotes);
                 }
             }
         }
 
-        // 미국 알람 체크
-        if (isUsMarketTime(nowKst) && overseasPriceFetcher != null && overseasPriceFetcher.isConfigured()) {
-            checkUsAlerts(allAlerts);
-        }
+        // 미국 알람 체크 (일시 비활성)
+        // if (isUsMarketTime(nowKst) && overseasPriceFetcher != null && overseasPriceFetcher.isConfigured()) {
+        //     checkUsAlerts(allAlerts);
+        // }
     }
 
     private void checkUsAlerts(List<PriceAlertDto> allAlerts) {
@@ -206,7 +211,8 @@ public class AlertService {
         String label = alert.getLabel();
         if (label != null && !label.isBlank()) {
             boolean bearishFromOpen = openPrice != null && openPrice.compareTo(currentPrice) >= 0;
-            sb.append("\n").append(bearishFromOpen ? "[❌ 음봉]" : "[양봉 빵빵빵 확인]").append(label);
+            String prefix = "MY".equalsIgnoreCase(alert.getSource()) ? "[윤볾픽]" : "";
+            sb.append("\n").append(bearishFromOpen ? "[❌ 음봉]" : "[양봉 빵빵빵 확인]").append(prefix).append(label);
         }
 
         // TODO: 빵빵빵 데이터 정상화 후 주석 해제
@@ -226,6 +232,57 @@ public class AlertService {
         telegramService.broadcast(msg);
         log.info("ALERT TRIGGERED: {} {} target={} current={}",
                 symbolDisplay, alert.getCondition(), alert.getTargetPrice(), currentPrice);
+    }
+
+    // ─── 갭 상승 감지 (전일종가 < 오늘시가) ───
+
+    private void checkGapUp(List<PriceAlertDto> krAlerts, Map<String, DomesticStockQuote> quotes) {
+        LocalDate today = LocalDate.now(KST);
+        if (!today.equals(gapUpDate)) {
+            gapUpNotifiedCodes.clear();
+            gapUpDate = today;
+        }
+
+        // 종목코드별로 중복 제거 (같은 종목에 여러 알람이 있을 수 있음)
+        Map<String, PriceAlertDto> codeToAlert = new LinkedHashMap<>();
+        for (PriceAlertDto a : krAlerts) {
+            codeToAlert.putIfAbsent(a.getStockCode(), a);
+        }
+
+        for (Map.Entry<String, PriceAlertDto> entry : codeToAlert.entrySet()) {
+            String code = entry.getKey();
+            if (gapUpNotifiedCodes.contains(code)) continue;
+
+            DomesticStockQuote q = quotes.get(code);
+            if (q == null || q.prevDayClose() == null || q.openPrice() == null) continue;
+
+            if (q.openPrice().compareTo(q.prevDayClose()) > 0) {
+                sendGapUpAlert(entry.getValue(), q);
+                gapUpNotifiedCodes.add(code);
+            }
+        }
+    }
+
+    private void sendGapUpAlert(PriceAlertDto alert, DomesticStockQuote q) {
+        String symbolDisplay = alert.getSymbol() != null && !alert.getSymbol().isBlank()
+                ? alert.getSymbol() : alert.getStockCode();
+
+        BigDecimal gapPct = q.openPrice().subtract(q.prevDayClose())
+                .multiply(new BigDecimal("100"))
+                .divide(q.prevDayClose(), 2, java.math.RoundingMode.HALF_UP);
+
+        String srcPrefix = "MY".equalsIgnoreCase(alert.getSource()) ? "[윤볾픽] " : "";
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("🇰🇷 ").append(srcPrefix).append("<b>").append(symbolDisplay).append("</b> ⬆️ 갭 상승\n");
+        sb.append("전일종가 : ").append(formatPrice(q.prevDayClose(), false)).append("원\n");
+        sb.append("오늘시가 : <b>").append(formatPrice(q.openPrice(), false)).append("원</b>\n");
+        sb.append("갭 : <b>+").append(gapPct).append("%</b>\n");
+        sb.append("현재가 : ").append(formatPrice(q.currentPrice(), false)).append("원");
+
+        telegramService.broadcast(sb.toString());
+        log.info("GAP UP: {} prevClose={} open={} gap={}%",
+                symbolDisplay, q.prevDayClose(), q.openPrice(), gapPct);
     }
 
     private String formatPrice(BigDecimal price, boolean isUs) {

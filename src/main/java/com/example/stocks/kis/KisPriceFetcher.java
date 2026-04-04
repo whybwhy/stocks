@@ -120,7 +120,8 @@ public class KisPriceFetcher {
             BigDecimal open = parseOptionalPrice(output.path("stck_oprc").asText(null));
             BigDecimal dayHigh = parseOptionalPrice(output.path("stck_hgpr").asText(null));
             BigDecimal prevDayHigh = firstPresentPrice(output, "prdy_hgpr", "stck_prdy_hgpr");
-            return new DomesticStockQuote(current, open, dayHigh, prevDayHigh);
+            BigDecimal prevDayClose = parseOptionalPrice(output.path("stck_sdpr").asText(null));
+            return new DomesticStockQuote(current, open, dayHigh, prevDayHigh, prevDayClose);
         } catch (Exception e) {
             log.warn("KIS fetchSingleQuote failed for {}: {}", fidInputIscd, e.getMessage());
             return null;
