@@ -114,25 +114,13 @@ public class MarketIndexScheduler {
 
     /**
      * 운영 시간 판단 (KST 기준).
-     *  - 정규장: 평일 09:00 ~ 15:35
-     *  - 야간장: 평일 18:00 ~ 23:59
-     *  - 야간연장: 평일·토 00:00 ~ 05:00
-     *  - 일요일: 운영 안 함
+     * 평일 정규장만: 09:00 ~ 15:35
      */
     static boolean isOperatingTime(ZonedDateTime now) {
         DayOfWeek dow = now.getDayOfWeek();
+        if (dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY) return false;
+
         LocalTime t = now.toLocalTime();
-
-        if (dow == DayOfWeek.SUNDAY) return false;
-
-        if (dow == DayOfWeek.SATURDAY) {
-            return !t.isAfter(LocalTime.of(5, 0));
-        }
-
-        boolean regular      = !t.isBefore(LocalTime.of(9, 0))  && !t.isAfter(LocalTime.of(15, 35));
-        boolean night         = !t.isBefore(LocalTime.of(18, 0));
-        boolean earlyMorning  = t.isBefore(LocalTime.of(5, 0));
-
-        return regular || night || earlyMorning;
+        return !t.isBefore(LocalTime.of(9, 0)) && !t.isAfter(LocalTime.of(15, 35));
     }
 }
