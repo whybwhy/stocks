@@ -27,10 +27,10 @@ import java.util.stream.Collectors;
 @Service
 public class HoldingService {
 
-    /** false: +5% / +10% 수익 텔레그램 알림 비활성. */
-    private static final boolean HOLDING_GAIN_ALERTS_ENABLED = false;
-    /** false: -3% / -5% / -10% 손실 텔레그램 알림 비활성. */
-    private static final boolean HOLDING_LOSS_ALERTS_ENABLED = false;
+    /** true: +5% / +10% 수익 텔레그램 알림 활성. */
+    private static final boolean HOLDING_GAIN_ALERTS_ENABLED = true;
+    /** true: -3% / -5% / -10% 손실 텔레그램 알림 활성. */
+    private static final boolean HOLDING_LOSS_ALERTS_ENABLED = true;
 
     private static final Logger log = LoggerFactory.getLogger(HoldingService.class);
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
@@ -45,9 +45,9 @@ public class HoldingService {
     /** 보유종목 알림 전용 텔레그램 채널(또는 그룹) ID */
     private static final String HOLDING_TELEGRAM_CHAT_ID = "8066272092";
 
-    /** 일별 수익 알림 추적: "날짜_holdingId_pct" 형태로 당일 발송 여부 기록. 날짜 변경 시 자동 초기화. */
-    private final Set<String> dailyGainNotified = new HashSet<>();
-    private LocalDate dailyGainDate;
+    /** 일별 수익/손실 알림 추적: "holdingId_pct" 형태로 당일 발송 여부 기록. 날짜 변경 시 자동 초기화. */
+    private final Set<String> dailyNotified = new HashSet<>();
+    private LocalDate dailyNotifiedDate;
 
     private final RestClient supabaseRestClient;
     private final TelegramService telegramService;
@@ -73,9 +73,9 @@ public class HoldingService {
         LocalDate today = nowKst.toLocalDate();
 
         // 날짜가 바뀌면 추적 셋 초기화
-        if (!today.equals(dailyGainDate)) {
-            dailyGainNotified.clear();
-            dailyGainDate = today;
+        if (!today.equals(dailyNotifiedDate)) {
+            dailyNotified.clear();
+            dailyNotifiedDate = today;
         }
 
         if (!isKrMarketTime(nowKst) && !isUsMarketTime(nowKst)) return;
@@ -127,27 +127,50 @@ public class HoldingService {
         if (h.getBuyPrice() == null || h.getBuyPrice().compareTo(BigDecimal.ZERO) <= 0) return;
 
         BigDecimal buy = h.getBuyPrice();
-        BigDecimal target10 = buy.multiply(PCT_10);
-        BigDecimal target5 = buy.multiply(PCT_5);
 
-        String key10 = h.getId() + "_10";
-        String key5 = h.getId() + "_5";
+        if (currentPrice.compareTo(buy) >= 0) {
+            // 수익 체크
+            String key10 = h.getId() + "_g10";
+            String key5 = h.getId() + "_g5";
 
-        if (!dailyGainNotified.contains(key10) && currentPrice.compareTo(target10) >= 0) {
-            sendHoldingGainAlert(h, currentPrice, 10, quote);
-            dailyGainNotified.add(key10);
-            dailyGainNotified.add(key5); // 10% 도달 시 5%도 발송 불필요
-        } else if (!dailyGainNotified.contains(key5) && currentPrice.compareTo(target5) >= 0) {
-            sendHoldingGainAlert(h, currentPrice, 5, quote);
-            dailyGainNotified.add(key5);
+            if (!dailyNotified.contains(key10) && currentPrice.compareTo(buy.multiply(PCT_10)) >= 0) {
+                sendHoldingGainAlert(h, currentPrice, 10, quote);
+                dailyNotified.add(key10);
+                dailyNotified.add(key5);
+            } else if (!dailyNotified.contains(key5) && currentPrice.compareTo(buy.multiply(PCT_5)) >= 0) {
+                sendHoldingGainAlert(h, currentPrice, 5, quote);
+                dailyNotified.add(key5);
+            }
+        } else {
+            // 손실 체크
+            String keyL10 = h.getId() + "_l10";
+            String keyL5 = h.getId() + "_l5";
+            String keyL3 = h.getId() + "_l3";
+
+            if (!dailyNotified.contains(keyL10) && currentPrice.compareTo(buy.multiply(LOSS_10)) <= 0) {
+                sendHoldingLossAlert(h, currentPrice, 10, quote);
+                dailyNotified.add(keyL10);
+                dailyNotified.add(keyL5);
+                dailyNotified.add(keyL3);
+            } else if (!dailyNotified.contains(keyL5) && currentPrice.compareTo(buy.multiply(LOSS_5)) <= 0) {
+                sendHoldingLossAlert(h, currentPrice, 5, quote);
+                dailyNotified.add(keyL5);
+                dailyNotified.add(keyL3);
+            } else if (!dailyNotified.contains(keyL3) && currentPrice.compareTo(buy.multiply(LOSS_3)) <= 0) {
+                sendHoldingLossAlert(h, currentPrice, 3, quote);
+                dailyNotified.add(keyL3);
+            }
         }
     }
 
     /**
-     * 보유종목 수익 알림 체크. AlertScheduler에서 호출됨.
-     * Supabase 조회·가격 비교 모두 장중(한국 또는 미국 세션)에만 수행.
+     * 보유종목 수익/손실 알림 체크 (레거시). checkDailyGains()로 대체됨.
+     * AlertScheduler에서 호출되나, 일별 알림은 checkDailyGains()에서 처리.
      */
     public void checkHoldings() {
+        // checkDailyGains()에서 일별 수익/손실 알림을 처리하므로 여기서는 스킵
+        return;
+        /*
         if (!HOLDING_GAIN_ALERTS_ENABLED && !HOLDING_LOSS_ALERTS_ENABLED) {
             return;
         }
@@ -176,6 +199,7 @@ public class HoldingService {
         if (isUsMarketTime(nowKst) && overseasPriceFetcher != null && overseasPriceFetcher.isConfigured()) {
             checkUsHoldings(holdings);
         }
+        */
     }
 
     private void checkUsHoldings(List<HoldingDto> holdings) {
