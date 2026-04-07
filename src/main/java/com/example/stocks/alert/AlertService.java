@@ -85,7 +85,7 @@ public class AlertService {
                         }
                     }
                     processAlerts(krAlerts, prices, opens);
-                    checkGapUp(krAlerts, quotes);
+                    // checkGapUp(krAlerts, quotes);
                     checkCap(krAlerts, quotes);
                 }
             }
