@@ -36,6 +36,8 @@ spring:
             scope:
               - profile_nickname
               - profile_image
+              # app.allowed-user-emails 제한 시 카카오 계정 이메일 동의 필요 (앱에 동의 항목 등록)
+              - account_email
         provider:
           kakao:
             authorization-uri: https://kauth.kakao.com/oauth/authorize
@@ -44,9 +46,12 @@ spring:
             user-name-attribute: id
 
 # /stock/chartboy 접근 허용 카카오 계정(닉네임). 비어 있으면 모든 인증 사용자 허용. 아래에 추가하면 해당 닉네임만 접근 가능.
+# 이메일 화이트리스트: 비어 있으면 비활성. 설정 시 /chartboy/list 외 카카오 로그인 경로는 목록의 이메일만 허용.
+# Render 등: APP_ALLOWED_USER_EMAILS= (여러 명은 콤마로 구분)
 app:
   allowed-kakao-accounts: ["30_윤보람", "김효진", "bk", "Yun 보라", "한승우"]
   # allowed-kakao-accounts: [ "닉네임1", "닉네임2" ]
+  allowed-user-emails: "${APP_ALLOWED_USER_EMAILS:}"
 
 supabase:
   url: ${SUPABASE_URL:}

@@ -12,9 +12,11 @@ import org.springframework.security.web.access.intercept.AuthorizationFilter;
 public class SecurityConfig {
 
     private final SupabaseService supabaseService;
+    private final AppProperties appProperties;
 
-    public SecurityConfig(SupabaseService supabaseService) {
+    public SecurityConfig(SupabaseService supabaseService, AppProperties appProperties) {
         this.supabaseService = supabaseService;
+        this.appProperties = appProperties;
     }
 
     @Bean
@@ -29,8 +31,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/index", "/health", "/favicon.png").permitAll()
                         .requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").permitAll()
-                        // /admin 이 포함된 경로는 인증 없이 접근 허용 (예: /admin, /admin/stock/chartboy)
-                        .requestMatchers("/admin", "/admin/**").permitAll()
+                        // 차트보이 공개 목록 (price_alerts 읽기 전용, 등록·수정·삭제 URL 없음)
+                        .requestMatchers("/chartboy/list").permitAll()
+                        .requestMatchers("/admin", "/admin/**").authenticated()
                         .requestMatchers("/api/alerts", "/api/alerts/**").permitAll()
                         .anyRequest().authenticated()
                 )
@@ -46,6 +49,7 @@ public class SecurityConfig {
                         .deleteCookies("JSESSIONID")
                 )
                 .addFilterBefore(new KakaoAuthLoggingFilter(), AuthorizationFilter.class)
+                .addFilterBefore(new AllowedAppUserEmailFilter(appProperties), AuthorizationFilter.class)
                 .addFilterBefore(new ServicePermissionFilter(supabaseService), AuthorizationFilter.class);
 
         return http.build();

@@ -68,14 +68,7 @@
                       class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 resize-y focus:ring-2 focus:ring-slate-400"></textarea>
         </div>
 
-        <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">출처 (source) <span class="text-red-500">*</span></label>
-            <select th:field="*{source}" class="w-full rounded-lg border border-slate-300 px-3 py-2 bg-white text-slate-800">
-                <option value="MY">MY</option>
-                <option value="CHARTBOY">CHARTBOY</option>
-                <option value="MANUAL">MANUAL</option>
-            </select>
-        </div>
+        <input type="hidden" th:field="*{source}"/>
 
         <div>
             <label class="block text-sm font-medium text-slate-700 mb-1">상태</label>

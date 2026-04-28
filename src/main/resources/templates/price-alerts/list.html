@@ -11,25 +11,39 @@
 <div class="w-full max-w-[100rem] mx-auto p-4 sm:p-6">
     <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
         <div>
-            <h1 class="text-xl sm:text-2xl font-bold text-slate-800">목표가 알람</h1>
-            <p class="text-xs text-slate-500 mt-1">Supabase 테이블 <code class="bg-slate-200 px-1 rounded">price_alerts</code> · 스키마는 <code class="bg-slate-200 px-1 rounded">price_alerts.sql</code> 참고</p>
+            <h1 class="text-xl sm:text-2xl font-bold text-slate-800"></h1>
         </div>
-        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
-            <a th:href="|/${listPathPrefix}/edit|"
-               class="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-sm font-medium hover:bg-slate-700">신규 등록</a>
-            <span th:if="${userNickname != null and !userNickname.isEmpty()}" class="text-sm text-slate-600" th:text="${userNickname}">닉네임</span>
-            <a href="/main" class="text-sm text-slate-500 hover:text-slate-700 underline">메인</a>
-            <a th:if="${showLogout}" href="/logout" class="text-sm text-slate-500 hover:text-slate-700 underline">로그아웃</a>
-        </div>
+        
     </div>
 
     <p th:if="${error != null}" class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" th:text="${error}"></p>
-
-    <!-- 출처 필터 -->
-    <form method="get" th:action="|/${listPathPrefix}|" class="mb-4 flex flex-wrap items-end gap-3">
+    <p th:if="${searchRejected}"
+       class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        검색어는 한글·영문·숫자와 <code class="bg-amber-100 px-1 rounded">._·-</code> 공백만, 최대 64자까지 입력할 수 있습니다.
+    </p>
+    
+    <!-- 공개: 검색만 -->
+    <form th:if="${readOnly}" method="get" th:action="|/${listPathPrefix}|" class="mb-4 flex flex-wrap items-end gap-2">
         <input type="hidden" name="size" th:value="${pageSize}"/>
         <div>
-            <label for="source" class="block text-xs font-medium text-slate-600 mb-1">출처 (source)</label>
+            <label for="q-readonly" class="block text-xs font-medium text-slate-600 mb-1">종목명·종목코드 전체 일치</label>
+            <input id="q-readonly" name="q" type="search" maxlength="64" autocomplete="off"
+                   th:value="${searchQuery}"
+                   placeholder="예: 서진시스템, 178320"
+                   class="rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white w-56 sm:w-72"/>
+        </div>
+        <button type="submit" class="px-4 py-2 rounded-lg bg-slate-700 text-white text-sm hover:bg-slate-600">검색</button>
+        <a th:if="${!#strings.isEmpty(searchQuery)}"
+           th:href="|/${listPathPrefix}?size=${pageSize}|"
+           role="button"
+           class="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50">초기화</a>
+    </form>
+
+    <!-- 목록 필터 (로그인·관리 화면) -->
+    <form th:unless="${readOnly}" method="get" th:action="|/${listPathPrefix}|" class="mb-4 flex flex-wrap items-end gap-3">
+        <input type="hidden" name="size" th:value="${pageSize}"/>
+        <div>
+            <label for="source" class="block text-xs font-medium text-slate-600 mb-1">구분</label>
             <select id="source" name="source" class="rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white">
                 <option value="ALL" th:selected="${sourceFilter == 'ALL'}">전체</option>
                 <option value="CHARTBOY" th:selected="${sourceFilter == 'CHARTBOY'}">CHARTBOY</option>
@@ -37,8 +51,29 @@
                 <option value="MANUAL" th:selected="${sourceFilter == 'MANUAL'}">MANUAL</option>
             </select>
         </div>
+        <div>
+            <label for="q" class="block text-xs font-medium text-slate-600 mb-1">종목명·코드 전체 일치</label>
+            <input id="q" name="q" type="search" maxlength="64" autocomplete="off"
+                   th:value="${searchQuery}"
+                   placeholder="한글·영문·숫자 등"
+                   class="rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white w-48 sm:w-64"/>
+        </div>
         <button type="submit" class="px-4 py-2 rounded-lg bg-slate-700 text-white text-sm hover:bg-slate-600">적용</button>
     </form>
+
+    <!-- 페이징 (테이블 위) -->
+    <div class="mb-3 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600"
+         th:if="${totalPages > 1}">
+        <span>페이지 <strong th:text="${currentPage}">1</strong> / <strong th:text="${totalPages}">1</strong></span>
+        <div class="flex flex-wrap gap-2 items-center">
+            <a th:if="${currentPage > 1}"
+               th:href="|/${listPathPrefix}?page=${currentPage - 1}&size=${pageSize}${listQueryExtra}|"
+               class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700">이전</a>
+            <a th:if="${currentPage < totalPages}"
+               th:href="|/${listPathPrefix}?page=${currentPage + 1}&size=${pageSize}${listQueryExtra}|"
+               class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700">다음</a>
+        </div>
+    </div>
 
     <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
         <table class="min-w-full divide-y divide-slate-200 text-xs sm:text-sm">
@@ -51,11 +86,10 @@
                 <th class="px-3 sm:px-4 py-3 text-right font-semibold text-slate-500 uppercase tracking-wider">목표가</th>
                 <th class="px-3 sm:px-4 py-3 text-center font-semibold text-slate-500 uppercase tracking-wider">조건</th>
                 <th class="hidden lg:table-cell px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">라벨</th>
-                <th class="px-3 sm:px-4 py-3 text-center font-semibold text-slate-500 uppercase tracking-wider">출처</th>
-                <th class="px-3 sm:px-4 py-3 text-center font-semibold text-slate-500 uppercase tracking-wider">활성</th>
-                <th class="hidden md:table-cell px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">알람</th>
+                <th th:unless="${readOnly}" class="px-3 sm:px-4 py-3 text-center font-semibold text-slate-500 uppercase tracking-wider">활성</th>
+                <th th:unless="${readOnly}" class="hidden md:table-cell px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">알람</th>
                 <th class="hidden md:table-cell px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">등록</th>
-                <th class="px-3 sm:px-4 py-3 text-center font-semibold text-slate-500 uppercase tracking-wider w-20">수정</th>
+                <th th:unless="${readOnly}" class="px-3 sm:px-4 py-3 text-center font-semibold text-slate-500 uppercase tracking-wider w-20">수정</th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
@@ -76,22 +110,18 @@
                     <span th:if="${a.condition != 'ABOVE' and a.condition != 'BELOW'}" th:text="${a.condition}" class="text-slate-600 text-xs">-</span>
                 </td>
                 <td class="hidden lg:table-cell px-3 sm:px-4 py-2.5 text-slate-600 max-w-md truncate" th:title="${a.label}" th:text="${a.label}">-</td>
-                <td class="px-3 sm:px-4 py-2.5 text-center text-xs">
-                    <span class="px-2 py-0.5 rounded bg-indigo-50 text-indigo-800 border border-indigo-100"
-                          th:text="${a.source != null ? a.source : 'CHARTBOY'}">CHARTBOY</span>
-                </td>
-                <td class="px-3 sm:px-4 py-2.5 text-center text-xs" th:text="${a.isActive != null and a.isActive} ? 'O' : 'X'">O</td>
-                <td class="hidden md:table-cell px-3 sm:px-4 py-2.5 text-slate-500 text-xs whitespace-nowrap font-mono"
+                <td th:unless="${readOnly}" class="px-3 sm:px-4 py-2.5 text-center text-xs" th:text="${a.isActive != null and a.isActive} ? 'O' : 'X'">O</td>
+                <td th:unless="${readOnly}" class="hidden md:table-cell px-3 sm:px-4 py-2.5 text-slate-500 text-xs whitespace-nowrap font-mono"
                     th:text="${a.triggeredAt != null && #strings.length(a.triggeredAt) >= 10 ? #strings.substring(a.triggeredAt, 0, 10) : (a.triggeredAt != null && !#strings.isEmpty(#strings.trim(a.triggeredAt)) ? a.triggeredAt : '-')}">-</td>
                 <td class="hidden md:table-cell px-3 sm:px-4 py-2.5 text-slate-500 text-xs whitespace-nowrap font-mono"
                     th:text="${a.createdAt != null && #strings.length(a.createdAt) >= 10 ? #strings.substring(a.createdAt, 0, 10) : (a.createdAt != null && !#strings.isEmpty(#strings.trim(a.createdAt)) ? a.createdAt : '-')}">-</td>
-                <td class="px-3 sm:px-4 py-2.5 text-center">
+                <td th:unless="${readOnly}" class="px-3 sm:px-4 py-2.5 text-center">
                     <a th:href="|/${listPathPrefix}/edit?id=${a.id}|"
                        class="text-xs px-2 py-1 rounded border border-slate-300 text-slate-600 hover:bg-slate-100">수정</a>
                 </td>
             </tr>
             <tr th:if="${#lists.isEmpty(alerts)}">
-                <td colspan="12" class="px-4 py-8 text-center text-slate-500">데이터가 없거나 Supabase 연동을 확인하세요.</td>
+                <td th:colspan="${readOnly ? 8 : 11}" class="px-4 py-8 text-center text-slate-500">데이터가 없거나 Supabase 연동을 확인하세요.</td>
             </tr>
             </tbody>
         </table>
@@ -102,10 +132,10 @@
         <span>총 <strong th:text="${totalCount}">0</strong>건 · 페이지 <strong th:text="${currentPage}">1</strong> / <strong th:text="${totalPages}">1</strong></span>
         <div class="flex flex-wrap gap-2 items-center" th:if="${totalPages > 1}">
             <a th:if="${currentPage > 1}"
-               th:href="|/${listPathPrefix}?page=${currentPage - 1}&size=${pageSize}${sourceFilter != null and sourceFilter != 'ALL' ? '&source=' + sourceFilter : ''}|"
+               th:href="|/${listPathPrefix}?page=${currentPage - 1}&size=${pageSize}${listQueryExtra}|"
                class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700">이전</a>
             <a th:if="${currentPage < totalPages}"
-               th:href="|/${listPathPrefix}?page=${currentPage + 1}&size=${pageSize}${sourceFilter != null and sourceFilter != 'ALL' ? '&source=' + sourceFilter : ''}|"
+               th:href="|/${listPathPrefix}?page=${currentPage + 1}&size=${pageSize}${listQueryExtra}|"
                class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700">다음</a>
         </div>
     </div>

@@ -14,9 +14,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Supabase {@code price_alerts} 테이블 조회·등록·수정·삭제.
@@ -38,8 +41,25 @@ public class PriceAlertViewController {
                        @RequestParam(name = "page", defaultValue = "1") int page,
                        @RequestParam(name = "size", defaultValue = "50") int size,
                        @RequestParam(name = "source", required = false) String source,
+                       @RequestParam(name = "q", required = false) String q,
                        Model model) {
-        return renderList(model, page, size, source, resolveKakaoNickname(user), true, "price-alerts");
+        Optional<String> search = PriceAlertSearchSanitizer.validated(q);
+        boolean rejected = PriceAlertSearchSanitizer.wasRejected(q, search);
+        return renderList(model, page, size, source, resolveKakaoNickname(user), true, "price-alerts", false,
+                search, rejected);
+    }
+
+    /**
+     * 카카오 로그인 없이 목표가 알람 목록만 조회 (등록·수정·삭제 URL은 제공하지 않음).
+     */
+    @GetMapping("/chartboy/list")
+    public String listChartboyPublic(@RequestParam(name = "page", defaultValue = "1") int page,
+                                     @RequestParam(name = "size", defaultValue = "50") int size,
+                                     @RequestParam(name = "q", required = false) String q,
+                                     Model model) {
+        Optional<String> search = PriceAlertSearchSanitizer.validated(q);
+        boolean rejected = PriceAlertSearchSanitizer.wasRejected(q, search);
+        return renderList(model, page, size, "CHARTBOY", null, false, "chartboy/list", true, search, rejected);
     }
 
     @GetMapping("/admin/price-alerts")
@@ -47,9 +67,13 @@ public class PriceAlertViewController {
                             @RequestParam(name = "page", defaultValue = "1") int page,
                             @RequestParam(name = "size", defaultValue = "50") int size,
                             @RequestParam(name = "source", required = false) String source,
+                            @RequestParam(name = "q", required = false) String q,
                             Model model) {
+        Optional<String> search = PriceAlertSearchSanitizer.validated(q);
+        boolean rejected = PriceAlertSearchSanitizer.wasRejected(q, search);
         return renderList(model, page, size, source,
-                user != null ? resolveKakaoNickname(user) : null, user != null, "admin/price-alerts");
+                user != null ? resolveKakaoNickname(user) : null, user != null, "admin/price-alerts", false,
+                search, rejected);
     }
 
     @GetMapping("/price-alerts/edit")
@@ -161,12 +185,13 @@ public class PriceAlertViewController {
     }
 
     private String renderList(Model model, int page, int size, String source,
-                              String userNickname, boolean showLogout, String listPathPrefix) {
+                              String userNickname, boolean showLogout, String listPathPrefix, boolean readOnly,
+                              Optional<String> searchFilter, boolean searchRejected) {
         int safeSize = size > 0 && size <= 200 ? size : DEFAULT_PAGE_SIZE;
         int safePage = page < 1 ? 1 : page;
         int offset = (safePage - 1) * safeSize;
 
-        PriceAlertPageResult result = supabaseService.getPriceAlerts(safeSize, offset, source);
+        PriceAlertPageResult result = supabaseService.getPriceAlerts(safeSize, offset, source, searchFilter);
 
         model.addAttribute("alerts", result.list());
         model.addAttribute("totalCount", result.totalCount());
@@ -178,7 +203,27 @@ public class PriceAlertViewController {
         model.addAttribute("userNickname", userNickname);
         model.addAttribute("showLogout", showLogout);
         model.addAttribute("listPathPrefix", listPathPrefix);
+        model.addAttribute("readOnly", readOnly);
+        model.addAttribute("searchQuery", searchFilter.orElse(""));
+        model.addAttribute("searchRejected", searchRejected);
+        model.addAttribute("listQueryExtra", buildListQueryExtra(source, searchFilter, readOnly));
         return "price-alerts/list";
+    }
+
+    /**
+     * 페이징·검색 링크용 쿼리 조각 ({@code &} 로 시작하는 연결).
+     * {@code /chartboy/list}({@code readOnly})는 API에서 항상 CHARTBOY만 조회하므로 URL에 {@code source} 를 넣지 않음.
+     */
+    private static String buildListQueryExtra(String source, Optional<String> searchFilter, boolean chartboyPublicList) {
+        StringBuilder sb = new StringBuilder();
+        if (!chartboyPublicList) {
+            String s = source != null ? source.trim() : "";
+            if (!s.isEmpty() && !"ALL".equalsIgnoreCase(s)) {
+                sb.append("&source=").append(URLEncoder.encode(s, StandardCharsets.UTF_8));
+            }
+        }
+        searchFilter.ifPresent(v -> sb.append("&q=").append(URLEncoder.encode(v, StandardCharsets.UTF_8)));
+        return sb.toString();
     }
 
     private String renderEditForm(Long id, Model model, String userNickname, boolean showLogout, String listPathPrefix) {

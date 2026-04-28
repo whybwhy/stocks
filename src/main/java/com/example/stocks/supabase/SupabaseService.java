@@ -12,6 +12,7 @@ import com.example.stocks.alert.PriceAlertDto;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -67,8 +68,11 @@ public class SupabaseService {
     /**
      * price_alerts 목록 (id 내림차순). source가 null/blank/ALL 이면 전체.
      * 그 외에는 CHARTBOY, MY, MANUAL 중 하나로 필터.
+     *
+     * @param exactSymbolOrCode 이미 검증된 검색어 — {@code symbol} 또는 {@code stock_code} 와 <strong>전체 일치</strong>(PostgREST {@code or})
      */
-    public PriceAlertPageResult getPriceAlerts(int limit, int offset, String source) {
+    public PriceAlertPageResult getPriceAlerts(int limit, int offset, String source,
+                                               Optional<String> exactSymbolOrCode) {
         ResponseEntity<List<PriceAlertDto>> response = supabaseRestClient.get()
                 .uri(uriBuilder -> {
                     uriBuilder
@@ -81,6 +85,8 @@ public class SupabaseService {
                     if (!s.isEmpty() && !"ALL".equalsIgnoreCase(s)) {
                         uriBuilder.queryParam("source", "eq." + s);
                     }
+                    exactSymbolOrCode.ifPresent(v ->
+                            uriBuilder.queryParam("or", postgrestSymbolOrStockCodeOr(v)));
                     return uriBuilder.build();
                 })
                 .header("Prefer", "count=exact")
@@ -90,6 +96,19 @@ public class SupabaseService {
         List<PriceAlertDto> list = response.getBody() != null ? response.getBody() : List.of();
         long total = parseTotalFromContentRange(response.getHeaders().getFirst("Content-Range"));
         return new PriceAlertPageResult(list, total);
+    }
+
+    /**
+     * PostgREST: (symbol.eq."…",stock_code.eq."…") — 값은 애플리케이션에서 화이트리스트 검증 후 전달.
+     */
+    private static String postgrestSymbolOrStockCodeOr(String value) {
+        String q = postgrestDoubleQuoted(value);
+        return "(symbol.eq." + q + ",stock_code.eq." + q + ")";
+    }
+
+    private static String postgrestDoubleQuoted(String value) {
+        String escaped = value.replace("\\", "\\\\").replace("\"", "\\\"");
+        return "\"" + escaped + "\"";
     }
 
     public PriceAlertDto getPriceAlertById(Long id) {

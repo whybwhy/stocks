@@ -46,10 +46,12 @@ public class StockViewController {
     @GetMapping({"/", "/index"})
     public String home(Principal principal, Model model,
                        @RequestParam(name = "error", required = false) String error) {
-        if (principal != null) {
+        // 접근 거부(?error=forbidden) 시 세션은 남아 있을 수 있음 — 메시지를 보여 주기 위해 /main 으로 보내지 않음
+        if (principal != null && !"forbidden".equals(error)) {
             return "redirect:/main";
         }
         model.addAttribute("loginError", error);
+        model.addAttribute("loggedInButBlocked", principal != null && "forbidden".equals(error));
         return "index";
     }
 
