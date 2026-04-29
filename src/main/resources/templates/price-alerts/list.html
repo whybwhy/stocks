@@ -36,7 +36,7 @@
         <a th:if="${!#strings.isEmpty(searchQuery)}"
            th:href="|/${listPathPrefix}?size=${pageSize}|"
            role="button"
-           class="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50">초기화</a>
+           class="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50">목록으로</a>
     </form>
 
     <!-- 목록 필터 (로그인·관리 화면) -->
@@ -76,16 +76,16 @@
     </div>
 
     <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table class="min-w-full divide-y divide-slate-200 text-xs sm:text-sm">
+        <table class="w-max min-w-full divide-y divide-slate-200 text-xs sm:text-sm">
             <thead class="bg-slate-50">
             <tr>
                 <th class="px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">ID</th>
-                <th class="px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">시장</th>
+                <th class="hidden md:table-cell px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">시장</th>
                 <th class="px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">코드</th>
                 <th class="px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">종목명</th>
                 <th class="px-3 sm:px-4 py-3 text-right font-semibold text-slate-500 uppercase tracking-wider">목표가</th>
-                <th class="px-3 sm:px-4 py-3 text-center font-semibold text-slate-500 uppercase tracking-wider">조건</th>
-                <th class="hidden lg:table-cell px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">라벨</th>
+                <th class="hidden md:table-cell px-3 sm:px-4 py-3 text-center font-semibold text-slate-500 uppercase tracking-wider">조건</th>
+                <th class="px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">라벨</th>
                 <th th:unless="${readOnly}" class="px-3 sm:px-4 py-3 text-center font-semibold text-slate-500 uppercase tracking-wider">활성</th>
                 <th th:unless="${readOnly}" class="hidden md:table-cell px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">알람</th>
                 <th class="hidden md:table-cell px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">등록</th>
@@ -95,7 +95,7 @@
             <tbody class="divide-y divide-slate-100">
             <tr th:each="a : ${alerts}" class="hover:bg-slate-50">
                 <td class="px-3 sm:px-4 py-2.5 whitespace-nowrap text-slate-600" th:text="${a.id}">1</td>
-                <td class="px-3 sm:px-4 py-2.5 whitespace-nowrap">
+                <td class="hidden md:table-cell px-3 sm:px-4 py-2.5 whitespace-nowrap">
                     <span class="inline-block px-2 py-0.5 rounded border text-xs font-medium border-slate-300 text-slate-700 bg-slate-50"
                           th:text="${a.market != null ? a.market : 'KR'}">KR</span>
                 </td>
@@ -104,12 +104,13 @@
                 <td class="px-3 sm:px-4 py-2.5 text-right text-slate-800 whitespace-nowrap font-mono text-xs"
                     th:with="tp=${a.targetPrice != null ? a.targetPrice.setScale(0, T(java.math.RoundingMode).HALF_UP) : null}"
                     th:text="${tp != null ? #numbers.formatDecimal(tp, 1, 'COMMA', 0, 'POINT') : '-'}">0</td>
-                <td class="px-3 sm:px-4 py-2.5 text-center">
+                <td class="hidden md:table-cell px-3 sm:px-4 py-2.5 text-center">
                     <span th:if="${a.condition == 'ABOVE'}" class="text-emerald-700 font-medium text-xs">≥ ABOVE</span>
                     <span th:if="${a.condition == 'BELOW'}" class="text-rose-700 font-medium text-xs">≤ BELOW</span>
                     <span th:if="${a.condition != 'ABOVE' and a.condition != 'BELOW'}" th:text="${a.condition}" class="text-slate-600 text-xs">-</span>
                 </td>
-                <td class="hidden lg:table-cell px-3 sm:px-4 py-2.5 text-slate-600 max-w-md truncate" th:title="${a.label}" th:text="${a.label}">-</td>
+                <td class="px-3 sm:px-4 py-2.5 text-slate-600 whitespace-nowrap align-top"
+                    th:text="${a.label}">-</td>
                 <td th:unless="${readOnly}" class="px-3 sm:px-4 py-2.5 text-center text-xs" th:text="${a.isActive != null and a.isActive} ? 'O' : 'X'">O</td>
                 <td th:unless="${readOnly}" class="hidden md:table-cell px-3 sm:px-4 py-2.5 text-slate-500 text-xs whitespace-nowrap font-mono"
                     th:text="${a.triggeredAt != null && #strings.length(a.triggeredAt) >= 10 ? #strings.substring(a.triggeredAt, 0, 10) : (a.triggeredAt != null && !#strings.isEmpty(#strings.trim(a.triggeredAt)) ? a.triggeredAt : '-')}">-</td>
