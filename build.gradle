@@ -39,3 +39,8 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
 }
+
+// Docker COPY 시 와일드카드·버전 불일치 방지
+tasks.named('bootJar') {
+    archiveFileName = 'app.jar'
+}
