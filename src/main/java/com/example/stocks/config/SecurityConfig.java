@@ -32,7 +32,7 @@ public class SecurityConfig {
                         .requestMatchers("/", "/index", "/health", "/favicon.png").permitAll()
                         .requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").permitAll()
                         // 차트보이 공개 목록 (price_alerts 읽기 전용, 등록·수정·삭제 URL 없음)
-                        .requestMatchers("/chartboy/list").permitAll()
+                        .requestMatchers("/chartboy/list", "/chartboy/list/suggest").permitAll()
                         .requestMatchers("/admin", "/admin/**").authenticated()
                         .requestMatchers("/api/alerts", "/api/alerts/**").permitAll()
                         .anyRequest().authenticated()

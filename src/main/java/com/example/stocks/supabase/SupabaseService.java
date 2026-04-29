@@ -106,6 +106,51 @@ public class SupabaseService {
         return "(symbol.eq." + q + ",stock_code.eq." + q + ")";
     }
 
+    /**
+     * 검색창 자동완성용: {@code symbol}/{@code stock_code} 부분 일치(ilike)로 distinct 종목 후보를 반환합니다.
+     * 값은 호출 측에서 화이트리스트 검증 후 전달해야 합니다(쉼표·따옴표·{@code *}/{@code %} 미허용).
+     *
+     * @param prefix 검증된 검색어 (1자 이상)
+     * @param source CHARTBOY/MY/MANUAL/ALL — null·blank·ALL 이면 전체
+     * @param max    최대 후보 개수 (1..50)
+     */
+    public List<Map<String, String>> suggestPriceAlerts(String prefix, String source, int max) {
+        if (prefix == null || prefix.isBlank()) return List.of();
+        int safeMax = Math.max(1, Math.min(50, max));
+        // PostgREST or=()· ilike — 따옴표·% 형식이 인코딩에 가장 안정적
+        String pat = postgrestDoubleQuoted("%" + prefix + "%");
+        String orFilter = "(symbol.ilike." + pat + ",stock_code.ilike." + pat + ")";
+        List<Map<String, Object>> rows = supabaseRestClient.get()
+                .uri(uriBuilder -> {
+                    uriBuilder
+                            .path("/rest/v1/" + PRICE_ALERTS_TABLE)
+                            .queryParam("select", "symbol,stock_code")
+                            .queryParam("or", orFilter)
+                            .queryParam("order", "id.desc")
+                            .queryParam("limit", safeMax * 4); // 후보 여유분 → 앱에서 distinct
+                    String s = source != null ? source.trim() : "";
+                    if (!s.isEmpty() && !"ALL".equalsIgnoreCase(s)) {
+                        uriBuilder.queryParam("source", "eq." + s);
+                    }
+                    return uriBuilder.build();
+                })
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+        if (rows == null || rows.isEmpty()) return List.of();
+
+        java.util.LinkedHashMap<String, Map<String, String>> distinct = new java.util.LinkedHashMap<>();
+        for (Map<String, Object> r : rows) {
+            String symbol = r.get("symbol") != null ? r.get("symbol").toString().trim() : "";
+            String code = r.get("stock_code") != null ? r.get("stock_code").toString().trim() : "";
+            String key = symbol + "|" + code;
+            if (key.equals("|")) continue;
+            distinct.computeIfAbsent(key, k -> Map.of("symbol", symbol, "stockCode", code));
+            if (distinct.size() >= safeMax) break;
+        }
+        return new java.util.ArrayList<>(distinct.values());
+    }
+
     private static String postgrestDoubleQuoted(String value) {
         String escaped = value.replace("\\", "\\\\").replace("\"", "\\\"");
         return "\"" + escaped + "\"";

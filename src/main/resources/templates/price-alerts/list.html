@@ -25,12 +25,17 @@
     <!-- 공개: 검색만 -->
     <form th:if="${readOnly}" method="get" th:action="|/${listPathPrefix}|" class="mb-4 flex flex-wrap items-end gap-2">
         <input type="hidden" name="size" th:value="${pageSize}"/>
-        <div>
+        <div class="relative">
             <label for="q-readonly" class="block text-xs font-medium text-slate-600 mb-1">종목명·종목코드 전체 일치</label>
             <input id="q-readonly" name="q" type="search" maxlength="64" autocomplete="off"
+                   role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="q-readonly-suggest"
+                   data-suggest-input
+                   th:attr="data-suggest-url=${suggestUrl}"
                    th:value="${searchQuery}"
                    placeholder="예: 서진시스템, 178320"
                    class="rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white w-56 sm:w-72"/>
+            <ul id="q-readonly-suggest" role="listbox" hidden
+                class="absolute z-20 top-full mt-1 left-0 w-56 sm:w-72 max-h-64 overflow-y-auto rounded-lg border border-slate-300 bg-white shadow-lg text-sm"></ul>
         </div>
         <button type="submit" class="px-4 py-2 rounded-lg bg-slate-700 text-white text-sm hover:bg-slate-600">검색</button>
         <a th:if="${!#strings.isEmpty(searchQuery)}"
@@ -44,19 +49,24 @@
         <input type="hidden" name="size" th:value="${pageSize}"/>
         <div>
             <label for="source" class="block text-xs font-medium text-slate-600 mb-1">구분</label>
-            <select id="source" name="source" class="rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white">
+            <select id="source" name="source" data-suggest-source class="rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white">
                 <option value="ALL" th:selected="${sourceFilter == 'ALL'}">전체</option>
                 <option value="CHARTBOY" th:selected="${sourceFilter == 'CHARTBOY'}">CHARTBOY</option>
                 <option value="MY" th:selected="${sourceFilter == 'MY'}">MY</option>
                 <option value="MANUAL" th:selected="${sourceFilter == 'MANUAL'}">MANUAL</option>
             </select>
         </div>
-        <div>
+        <div class="relative">
             <label for="q" class="block text-xs font-medium text-slate-600 mb-1">종목명·코드 전체 일치</label>
             <input id="q" name="q" type="search" maxlength="64" autocomplete="off"
+                   role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="q-suggest"
+                   data-suggest-input data-suggest-source-from="#source"
+                   th:attr="data-suggest-url=${suggestUrl}"
                    th:value="${searchQuery}"
                    placeholder="한글·영문·숫자 등"
                    class="rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white w-48 sm:w-64"/>
+            <ul id="q-suggest" role="listbox" hidden
+                class="absolute z-20 top-full mt-1 left-0 w-48 sm:w-64 max-h-64 overflow-y-auto rounded-lg border border-slate-300 bg-white shadow-lg text-sm"></ul>
         </div>
         <button type="submit" class="px-4 py-2 rounded-lg bg-slate-700 text-white text-sm hover:bg-slate-600">적용</button>
     </form>
@@ -145,5 +155,168 @@
         </div>
     </div>
 </div>
+
+<script>
+(function () {
+    var inputs = document.querySelectorAll('[data-suggest-input]');
+    if (!inputs.length) {
+        console.warn('[suggest] no autocomplete input on page');
+    }
+    inputs.forEach(function (input) {
+        var listId = input.getAttribute('aria-controls');
+        var list = listId ? document.getElementById(listId) : null;
+        if (!list) {
+            console.warn('[suggest] missing listbox for', input.id);
+            return;
+        }
+        var url = input.getAttribute('data-suggest-url');
+        if (!url) {
+            console.warn('[suggest] missing data-suggest-url for', input.id);
+            return;
+        }
+        console.debug('[suggest] init', input.id, '→', url);
+
+        var sourceSel = null;
+        var sourceFromSel = input.getAttribute('data-suggest-source-from');
+        if (sourceFromSel) sourceSel = document.querySelector(sourceFromSel);
+
+        var debounceTimer = null;
+        var lastReqId = 0;
+        var activeIndex = -1;
+        var items = [];
+
+        function close() {
+            list.hidden = true;
+            list.innerHTML = '';
+            input.setAttribute('aria-expanded', 'false');
+            activeIndex = -1;
+            items = [];
+        }
+
+        function highlight(text, q) {
+            var safe = text == null ? '' : String(text);
+            if (!q) return document.createTextNode(safe);
+            var i = safe.toLowerCase().indexOf(q.toLowerCase());
+            if (i < 0) return document.createTextNode(safe);
+            var span = document.createElement('span');
+            span.appendChild(document.createTextNode(safe.substring(0, i)));
+            var b = document.createElement('strong');
+            b.className = 'text-slate-900';
+            b.textContent = safe.substring(i, i + q.length);
+            span.appendChild(b);
+            span.appendChild(document.createTextNode(safe.substring(i + q.length)));
+            return span;
+        }
+
+        function render(results, q) {
+            list.innerHTML = '';
+            items = [];
+            if (!results || results.length === 0) { close(); return; }
+            results.forEach(function (r, idx) {
+                var li = document.createElement('li');
+                li.setAttribute('role', 'option');
+                li.setAttribute('data-symbol', r.symbol || '');
+                li.setAttribute('data-stock-code', r.stockCode || '');
+                li.className = 'cursor-pointer px-3 py-2 hover:bg-slate-100 flex items-center justify-between gap-2';
+
+                var left = document.createElement('span');
+                left.className = 'text-slate-800';
+                left.appendChild(highlight(r.symbol || '-', q));
+
+                var right = document.createElement('span');
+                right.className = 'font-mono text-xs text-slate-500';
+                right.appendChild(highlight(r.stockCode || '', q));
+
+                li.appendChild(left);
+                li.appendChild(right);
+
+                li.addEventListener('mousedown', function (e) {
+                    e.preventDefault();
+                    pick(idx);
+                });
+                list.appendChild(li);
+                items.push(li);
+            });
+            list.hidden = false;
+            input.setAttribute('aria-expanded', 'true');
+            activeIndex = -1;
+        }
+
+        function pick(idx) {
+            if (idx < 0 || idx >= items.length) return;
+            var li = items[idx];
+            var sym = li.getAttribute('data-symbol');
+            var code = li.getAttribute('data-stock-code');
+            input.value = sym && sym.length > 0 ? sym : code;
+            close();
+            if (input.form) input.form.submit();
+        }
+
+        function fetchSuggest(q) {
+            var reqId = ++lastReqId;
+            var params = new URLSearchParams();
+            params.set('q', q);
+            if (sourceSel && sourceSel.value && sourceSel.value !== 'ALL') {
+                params.set('source', sourceSel.value);
+            }
+            var fullUrl = url + '?' + params.toString();
+            fetch(fullUrl, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+                .then(function (res) {
+                    if (!res.ok) {
+                        console.warn('[suggest] HTTP', res.status, fullUrl);
+                        return [];
+                    }
+                    return res.json();
+                })
+                .then(function (data) {
+                    if (reqId !== lastReqId) return;
+                    console.debug('[suggest] result', q, data);
+                    render(data, q);
+                })
+                .catch(function (err) {
+                    if (reqId === lastReqId) close();
+                    console.warn('[suggest] error', err);
+                });
+        }
+
+        input.addEventListener('input', function () {
+            var q = input.value.trim();
+            if (debounceTimer) clearTimeout(debounceTimer);
+            if (q.length < 1) { close(); return; }
+            debounceTimer = setTimeout(function () { fetchSuggest(q); }, 180);
+        });
+
+        input.addEventListener('keydown', function (e) {
+            if (list.hidden || items.length === 0) return;
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                activeIndex = (activeIndex + 1) % items.length;
+                updateActive();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                activeIndex = (activeIndex - 1 + items.length) % items.length;
+                updateActive();
+            } else if (e.key === 'Enter') {
+                if (activeIndex >= 0) {
+                    e.preventDefault();
+                    pick(activeIndex);
+                }
+            } else if (e.key === 'Escape') {
+                close();
+            }
+        });
+
+        function updateActive() {
+            items.forEach(function (li, i) {
+                if (i === activeIndex) li.classList.add('bg-slate-100');
+                else li.classList.remove('bg-slate-100');
+            });
+            if (activeIndex >= 0) items[activeIndex].scrollIntoView({ block: 'nearest' });
+        }
+
+        input.addEventListener('blur', function () { setTimeout(close, 120); });
+    });
+})();
+</script>
 </body>
 </html>

@@ -48,7 +48,8 @@ public class AllowedAppUserEmailFilter extends OncePerRequestFilter {
     }
 
     private static boolean isExemptPath(String path) {
-        if ("/chartboy/list".equals(path) || path.startsWith("/chartboy/list/")) {
+        if ("/chartboy/list".equals(path) || "/chartboy/list/suggest".equals(path)
+                || path.startsWith("/chartboy/list/")) {
             return true;
         }
         if ("/".equals(path) || "/index".equals(path) || "/health".equals(path) || "/favicon.png".equals(path)) {

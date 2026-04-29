@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
@@ -18,6 +19,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -106,6 +108,35 @@ public class PriceAlertViewController {
     public String deleteUser(@RequestParam("id") Long id) {
         supabaseService.deletePriceAlert(id);
         return "redirect:/price-alerts";
+    }
+
+    /** 자동완성: 로그인 사용자(/price-alerts) — source 필터 함께 사용 가능 */
+    @GetMapping("/price-alerts/suggest")
+    @ResponseBody
+    public List<Map<String, String>> suggestUser(@RequestParam(name = "q", required = false) String q,
+                                                 @RequestParam(name = "source", required = false) String source) {
+        return suggest(q, source);
+    }
+
+    /** 자동완성: 관리(/admin/price-alerts) */
+    @GetMapping("/admin/price-alerts/suggest")
+    @ResponseBody
+    public List<Map<String, String>> suggestAdmin(@RequestParam(name = "q", required = false) String q,
+                                                  @RequestParam(name = "source", required = false) String source) {
+        return suggest(q, source);
+    }
+
+    /** 자동완성: 공개(/chartboy/list) — 항상 CHARTBOY 한정 */
+    @GetMapping("/chartboy/list/suggest")
+    @ResponseBody
+    public List<Map<String, String>> suggestChartboyPublic(@RequestParam(name = "q", required = false) String q) {
+        return suggest(q, "CHARTBOY");
+    }
+
+    private List<Map<String, String>> suggest(String q, String source) {
+        Optional<String> v = PriceAlertSearchSanitizer.validated(q);
+        if (v.isEmpty()) return List.of();
+        return supabaseService.suggestPriceAlerts(v.get(), source, 10);
     }
 
     @PostMapping("/admin/price-alerts/delete")
@@ -207,6 +238,7 @@ public class PriceAlertViewController {
         model.addAttribute("searchQuery", searchFilter.orElse(""));
         model.addAttribute("searchRejected", searchRejected);
         model.addAttribute("listQueryExtra", buildListQueryExtra(source, searchFilter, readOnly));
+        model.addAttribute("suggestUrl", "/" + listPathPrefix + "/suggest");
         return "price-alerts/list";
     }
 
