@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -28,14 +29,17 @@ public class KisPriceFetcher {
     private final KisTokenService tokenService;
     private final RestClient kisRestClient;
     private final ObjectMapper objectMapper;
+    private final KisRateLimiter rateLimiter;
 
     public KisPriceFetcher(KisApiProperties properties, KisTokenService tokenService,
                            @Qualifier("kisRestClient") RestClient kisRestClient,
-                           ObjectMapper objectMapper) {
+                           ObjectMapper objectMapper,
+                           KisRateLimiter rateLimiter) {
         this.properties = properties;
         this.tokenService = tokenService;
         this.kisRestClient = kisRestClient;
         this.objectMapper = objectMapper;
+        this.rateLimiter = rateLimiter;
     }
 
     public boolean isConfigured() {
@@ -86,45 +90,69 @@ public class KisPriceFetcher {
     }
 
     private DomesticStockQuote fetchSingleQuote(String token, String fidInputIscd) {
+        for (int attempt = 0; attempt < 2; attempt++) {
+            rateLimiter.acquire();
+            try {
+                String url = "/uapi/domestic-stock/v1/quotations/inquire-price"
+                        + "?FID_COND_MRKT_DIV_CODE=" + KisApiConstants.FID_COND_MRKT_DIV_CODE
+                        + "&FID_INPUT_ISCD=" + fidInputIscd;
+                String json = kisRestClient.get()
+                        .uri(url)
+                        .header("Authorization", "Bearer " + token)
+                        .header("appkey", properties.getAppKey())
+                        .header("appsecret", properties.getAppSecret())
+                        .header("tr_id", KisApiConstants.TR_ID_PRICE)
+                        .header("custtype", "P")
+                        .retrieve()
+                        .body(String.class);
+
+                JsonNode root = objectMapper.readTree(json);
+                String rtCd = root.path("rt_cd").asText("");
+                if (!"0".equals(rtCd)) {
+                    String msgCd = root.path("msg_cd").asText("");
+                    String msg = root.path("msg1").asText("");
+                    if (KisApiConstants.MSG_CD_RATE_LIMIT.equals(msgCd) && attempt == 0) {
+                        sleepBackoff();
+                        continue;
+                    }
+                    log.debug("KIS inquire-price error for {}: rt_cd={} msg_cd={} msg={}", fidInputIscd, rtCd, msgCd, msg);
+                    return null;
+                }
+
+                JsonNode output = root.path("output");
+                if (output.isMissingNode()) {
+                    log.debug("KIS inquire-price no output for {}", fidInputIscd);
+                    return null;
+                }
+                String stckPrpr = output.path("stck_prpr").asText(null);
+                if (stckPrpr == null || stckPrpr.isBlank()) return null;
+                BigDecimal current = new BigDecimal(stckPrpr.replace(",", ""));
+                BigDecimal open = parseOptionalPrice(output.path("stck_oprc").asText(null));
+                BigDecimal dayHigh = parseOptionalPrice(output.path("stck_hgpr").asText(null));
+                BigDecimal prevDayHigh = firstPresentPrice(output, "prdy_hgpr", "stck_prdy_hgpr");
+                BigDecimal prevDayClose = parseOptionalPrice(output.path("stck_sdpr").asText(null));
+                return new DomesticStockQuote(current, open, dayHigh, prevDayHigh, prevDayClose);
+            } catch (RestClientResponseException e) {
+                String body = e.getResponseBodyAsString();
+                if (attempt == 0 && body != null && body.contains(KisApiConstants.MSG_CD_RATE_LIMIT)) {
+                    sleepBackoff();
+                    continue;
+                }
+                log.warn("KIS fetchSingleQuote failed for {}: {} {}", fidInputIscd, e.getStatusCode(), body);
+                return null;
+            } catch (Exception e) {
+                log.warn("KIS fetchSingleQuote failed for {}: {}", fidInputIscd, e.getMessage());
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private static void sleepBackoff() {
         try {
-            String url = "/uapi/domestic-stock/v1/quotations/inquire-price"
-                    + "?FID_COND_MRKT_DIV_CODE=" + KisApiConstants.FID_COND_MRKT_DIV_CODE
-                    + "&FID_INPUT_ISCD=" + fidInputIscd;
-            String json = kisRestClient.get()
-                    .uri(url)
-                    .header("Authorization", "Bearer " + token)
-                    .header("appkey", properties.getAppKey())
-                    .header("appsecret", properties.getAppSecret())
-                    .header("tr_id", KisApiConstants.TR_ID_PRICE)
-                    .header("custtype", "P")
-                    .retrieve()
-                    .body(String.class);
-
-            JsonNode root = objectMapper.readTree(json);
-            String rtCd = root.path("rt_cd").asText("");
-            if (!"0".equals(rtCd)) {
-                String msgCd = root.path("msg_cd").asText("");
-                String msg = root.path("msg1").asText("");
-                log.debug("KIS inquire-price error for {}: rt_cd={} msg_cd={} msg={}", fidInputIscd, rtCd, msgCd, msg);
-                return null;
-            }
-
-            JsonNode output = root.path("output");
-            if (output.isMissingNode()) {
-                log.debug("KIS inquire-price no output for {}", fidInputIscd);
-                return null;
-            }
-            String stckPrpr = output.path("stck_prpr").asText(null);
-            if (stckPrpr == null || stckPrpr.isBlank()) return null;
-            BigDecimal current = new BigDecimal(stckPrpr.replace(",", ""));
-            BigDecimal open = parseOptionalPrice(output.path("stck_oprc").asText(null));
-            BigDecimal dayHigh = parseOptionalPrice(output.path("stck_hgpr").asText(null));
-            BigDecimal prevDayHigh = firstPresentPrice(output, "prdy_hgpr", "stck_prdy_hgpr");
-            BigDecimal prevDayClose = parseOptionalPrice(output.path("stck_sdpr").asText(null));
-            return new DomesticStockQuote(current, open, dayHigh, prevDayHigh, prevDayClose);
-        } catch (Exception e) {
-            log.warn("KIS fetchSingleQuote failed for {}: {}", fidInputIscd, e.getMessage());
-            return null;
+            Thread.sleep(700);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
         }
     }
 

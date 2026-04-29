@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -31,15 +32,18 @@ public class KisOverseasPriceFetcher {
     private final KisTokenService tokenService;
     private final RestClient kisRestClient;
     private final ObjectMapper objectMapper;
+    private final KisRateLimiter rateLimiter;
 
     public KisOverseasPriceFetcher(KisApiProperties properties,
                                    KisTokenService tokenService,
                                    @Qualifier("kisRestClient") RestClient kisRestClient,
-                                   ObjectMapper objectMapper) {
+                                   ObjectMapper objectMapper,
+                                   KisRateLimiter rateLimiter) {
         this.properties = properties;
         this.tokenService = tokenService;
         this.kisRestClient = kisRestClient;
         this.objectMapper = objectMapper;
+        this.rateLimiter = rateLimiter;
     }
 
     public boolean isConfigured() {
@@ -75,46 +79,71 @@ public class KisOverseasPriceFetcher {
     }
 
     private BigDecimal fetchSinglePrice(String token, String excd, String symbol) {
-        try {
-            String url = KisApiConstants.OVERSEAS_PRICE_URL
-                    + "?AUTH="
-                    + "&EXCD=" + excd
-                    + "&SYMB=" + symbol;
+        for (int attempt = 0; attempt < 2; attempt++) {
+            rateLimiter.acquire();
+            try {
+                String url = KisApiConstants.OVERSEAS_PRICE_URL
+                        + "?AUTH="
+                        + "&EXCD=" + excd
+                        + "&SYMB=" + symbol;
 
-            String json = kisRestClient.get()
-                    .uri(url)
-                    .header("Authorization", "Bearer " + token)
-                    .header("appkey",    properties.getAppKey())
-                    .header("appsecret", properties.getAppSecret())
-                    .header("tr_id",     KisApiConstants.TR_ID_OVERSEAS_PRICE)
-                    .header("custtype",  "P")
-                    .retrieve()
-                    .body(String.class);
+                String json = kisRestClient.get()
+                        .uri(url)
+                        .header("Authorization", "Bearer " + token)
+                        .header("appkey",    properties.getAppKey())
+                        .header("appsecret", properties.getAppSecret())
+                        .header("tr_id",     KisApiConstants.TR_ID_OVERSEAS_PRICE)
+                        .header("custtype",  "P")
+                        .retrieve()
+                        .body(String.class);
 
-            if (json == null || json.isBlank()) return null;
+                if (json == null || json.isBlank()) return null;
 
-            JsonNode root = objectMapper.readTree(json);
-            String rtCd = root.path("rt_cd").asText("");
-            if (!"0".equals(rtCd)) {
-                log.debug("[해외현재가] {} 오류: rt_cd={} msg={}", symbol, rtCd, root.path("msg1").asText());
+                JsonNode root = objectMapper.readTree(json);
+                String rtCd = root.path("rt_cd").asText("");
+                if (!"0".equals(rtCd)) {
+                    String msgCd = root.path("msg_cd").asText("");
+                    if (KisApiConstants.MSG_CD_RATE_LIMIT.equals(msgCd) && attempt == 0) {
+                        sleepBackoff();
+                        continue;
+                    }
+                    log.debug("[해외현재가] {} 오류: rt_cd={} msg={}", symbol, rtCd, root.path("msg1").asText());
+                    return null;
+                }
+
+                JsonNode output = root.path("output");
+                if (output.isMissingNode()) return null;
+
+                // last: 현재가 (장중) / base: 전일종가
+                String lastStr = output.path("last").asText(null);
+                if (lastStr == null || lastStr.isBlank()) {
+                    lastStr = output.path("base").asText(null);
+                }
+                if (lastStr == null || lastStr.isBlank()) return null;
+
+                log.debug("[해외현재가] {} ({}) = ${}", symbol, excd, lastStr);
+                return new BigDecimal(lastStr.replace(",", ""));
+            } catch (RestClientResponseException e) {
+                String body = e.getResponseBodyAsString();
+                if (attempt == 0 && body != null && body.contains(KisApiConstants.MSG_CD_RATE_LIMIT)) {
+                    sleepBackoff();
+                    continue;
+                }
+                log.warn("[해외현재가] {} 호출 실패: {} {}", symbol, e.getStatusCode(), body);
+                return null;
+            } catch (Exception e) {
+                log.warn("[해외현재가] {} 파싱 실패: {}", symbol, e.getMessage());
                 return null;
             }
+        }
+        return null;
+    }
 
-            JsonNode output = root.path("output");
-            if (output.isMissingNode()) return null;
-
-            // last: 현재가 (장중) / base: 전일종가
-            String lastStr = output.path("last").asText(null);
-            if (lastStr == null || lastStr.isBlank()) {
-                lastStr = output.path("base").asText(null);
-            }
-            if (lastStr == null || lastStr.isBlank()) return null;
-
-            log.debug("[해외현재가] {} ({}) = ${}", symbol, excd, lastStr);
-            return new BigDecimal(lastStr.replace(",", ""));
-        } catch (Exception e) {
-            log.warn("[해외현재가] {} 파싱 실패: {}", symbol, e.getMessage());
-            return null;
+    private static void sleepBackoff() {
+        try {
+            Thread.sleep(700);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
         }
     }
 }

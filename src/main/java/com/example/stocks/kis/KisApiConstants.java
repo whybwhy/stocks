@@ -18,6 +18,9 @@ public final class KisApiConstants {
     /** 종목코드 6자리 패턴 */
     public static final String STOCK_CODE_PATTERN = "\\d{6}";
 
+    /** 초당 거래건수 초과 (앱키 단위 레이트리밋) */
+    public static final String MSG_CD_RATE_LIMIT = "EGW00201";
+
     // ─── 업종(시장) 지수 ───
     /** 업종지수 조회 TR_ID */
     public static final String TR_ID_INDEX = "FHPUP02100000";

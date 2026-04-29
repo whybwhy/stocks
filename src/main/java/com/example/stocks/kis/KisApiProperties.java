@@ -18,6 +18,12 @@ public class KisApiProperties {
     /** websocket(기본) 또는 rest */
     private String mode = "websocket";
 
+    /**
+     * REST 호출 레이트 제한 (req/s). 실전 한도 ≈ 20, 모의 ≈ 2.
+     * 안전 마진을 두고 기본 15. 환경변수: {@code KIS_REST_RATE_PER_SECOND}.
+     */
+    private int restRatePerSecond = 15;
+
     public String getAppKey() { return appKey; }
     public void setAppKey(String appKey) { this.appKey = appKey != null ? appKey : ""; }
 
@@ -29,6 +35,11 @@ public class KisApiProperties {
 
     public String getMode() { return mode; }
     public void setMode(String mode) { this.mode = mode != null ? mode : "websocket"; }
+
+    public int getRestRatePerSecond() { return restRatePerSecond; }
+    public void setRestRatePerSecond(int restRatePerSecond) {
+        this.restRatePerSecond = restRatePerSecond > 0 ? restRatePerSecond : 15;
+    }
 
     public boolean isConfigured() {
         return appKey != null && !appKey.isBlank() && appSecret != null && !appSecret.isBlank();

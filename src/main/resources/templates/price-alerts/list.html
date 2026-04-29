@@ -230,10 +230,22 @@
                 li.appendChild(left);
                 li.appendChild(right);
 
-                li.addEventListener('mousedown', function (e) {
-                    e.preventDefault();
-                    pick(idx, false);
-                });
+                if ('PointerEvent' in window) {
+                    li.addEventListener('pointerdown', function (e) {
+                        var isTouch = e.pointerType === 'touch' || e.pointerType === 'pen';
+                        e.preventDefault();
+                        pick(idx, isTouch);
+                    });
+                } else {
+                    li.addEventListener('touchstart', function (e) {
+                        e.preventDefault();
+                        pick(idx, true);
+                    }, { passive: false });
+                    li.addEventListener('mousedown', function (e) {
+                        e.preventDefault();
+                        pick(idx, false);
+                    });
+                }
                 list.appendChild(li);
                 items.push(li);
             });

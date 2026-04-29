@@ -76,6 +76,9 @@ kis:
   mode: ${KIS_MODE:rest}
   # REST 모드일 때 폴링 간격(초). 기본 30초. (환경변수: KIS_REST_CHECK_INTERVAL_SECONDS)
   rest-check-interval-seconds: ${KIS_REST_CHECK_INTERVAL_SECONDS:30}
+  # KIS REST 호출 레이트 (req/s). 실전 한도 ≈ 20, 모의 ≈ 2. 안전 마진 두고 기본 15.
+  # EGW00201 (초당 거래건수 초과) 방지용. (환경변수: KIS_REST_RATE_PER_SECOND)
+  rest-rate-per-second: ${KIS_REST_RATE_PER_SECOND:15}
   # 시장 지수 알림 (코스피·코스닥·야간선물)
   market-index:
     # false 로 설정 시 지수 알림 비활성화 (환경변수: KIS_MARKET_INDEX_ENABLED)
