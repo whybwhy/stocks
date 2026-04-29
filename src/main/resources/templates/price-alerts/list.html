@@ -90,6 +90,7 @@
                 <th th:unless="${readOnly}" class="hidden md:table-cell px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">알람</th>
                 <th class="hidden md:table-cell px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">등록</th>
                 <th th:unless="${readOnly}" class="px-3 sm:px-4 py-3 text-center font-semibold text-slate-500 uppercase tracking-wider w-20">수정</th>
+                <th class="table-cell md:hidden px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">날짜</th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
@@ -120,9 +121,12 @@
                     <a th:href="|/${listPathPrefix}/edit?id=${a.id}|"
                        class="text-xs px-2 py-1 rounded border border-slate-300 text-slate-600 hover:bg-slate-100">수정</a>
                 </td>
+                <td class="table-cell md:hidden px-3 sm:px-4 py-2.5 text-slate-500 text-xs whitespace-nowrap font-mono"
+                    th:with="ca=${a.createdAt != null && #strings.length(a.createdAt) >= 10 ? #strings.substring(a.createdAt, 0, 10) : null}"
+                    th:text="${ca != null and #strings.length(ca) == 10} ? ${#strings.substring(ca, 2, 4) + '.' + #strings.substring(ca, 5, 7) + '.' + #strings.substring(ca, 8, 10)} : '-'">-</td>
             </tr>
             <tr th:if="${#lists.isEmpty(alerts)}">
-                <td th:colspan="${readOnly ? 8 : 11}" class="px-4 py-8 text-center text-slate-500">데이터가 없거나 Supabase 연동을 확인하세요.</td>
+                <td th:colspan="${readOnly ? 9 : 12}" class="px-4 py-8 text-center text-slate-500">데이터가 없거나 Supabase 연동을 확인하세요.</td>
             </tr>
             </tbody>
         </table>
