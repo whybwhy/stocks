@@ -232,7 +232,7 @@
 
                 li.addEventListener('mousedown', function (e) {
                     e.preventDefault();
-                    pick(idx);
+                    pick(idx, false);
                 });
                 list.appendChild(li);
                 items.push(li);
@@ -242,14 +242,21 @@
             activeIndex = -1;
         }
 
-        function pick(idx) {
+        function pick(idx, autoSubmit) {
             if (idx < 0 || idx >= items.length) return;
             var li = items[idx];
             var sym = li.getAttribute('data-symbol');
             var code = li.getAttribute('data-stock-code');
             input.value = sym && sym.length > 0 ? sym : code;
             close();
-            if (input.form) input.form.submit();
+            input.focus();
+            if (autoSubmit && input.form) {
+                if (typeof input.form.requestSubmit === 'function') {
+                    input.form.requestSubmit();
+                } else {
+                    input.form.submit();
+                }
+            }
         }
 
         function fetchSuggest(q) {
@@ -299,7 +306,7 @@
             } else if (e.key === 'Enter') {
                 if (activeIndex >= 0) {
                     e.preventDefault();
-                    pick(activeIndex);
+                    pick(activeIndex, true);
                 }
             } else if (e.key === 'Escape') {
                 close();
