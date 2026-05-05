@@ -31,8 +31,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/index", "/health", "/favicon.png").permitAll()
                         .requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").permitAll()
-                        // 차트보이 공개 목록 (price_alerts 읽기 전용, 등록·수정·삭제 URL 없음)
-                        .requestMatchers("/chartboy/list", "/chartboy/list/suggest").permitAll()
+                        // 차트보이 공개 목록·돌파 로그: 문자열 패턴이 서블릿 경로와 어긋나면 OAuth로 튕기므로 RequestMatcher로 명시
+                        .requestMatchers(ChartboyPublicAccess::isPriceAlertPublicPath).permitAll()
                         .requestMatchers("/admin", "/admin/**").authenticated()
                         .requestMatchers("/api/alerts", "/api/alerts/**").permitAll()
                         .anyRequest().authenticated()

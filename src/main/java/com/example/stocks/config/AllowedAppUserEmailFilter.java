@@ -14,7 +14,7 @@ import java.util.Map;
 
 /**
  * {@code app.allowed-user-emails} 가 비어 있지 않을 때, 카카오 OAuth2 로그인 사용자의 이메일이
- * 목록에 없으면 접근을 거부합니다. {@code /chartboy/list}·로그인·로그아웃·헬스 등은 제외합니다.
+ * 목록에 없으면 접근을 거부합니다. {@code /chartboy/list}·{@code /chartboy/log}·로그인·로그아웃·헬스 등은 제외합니다.
  */
 public class AllowedAppUserEmailFilter extends OncePerRequestFilter {
 
@@ -27,7 +27,7 @@ public class AllowedAppUserEmailFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        if (!appProperties.isEmailAllowlistEnabled() || isExemptPath(request.getRequestURI())) {
+        if (!appProperties.isEmailAllowlistEnabled() || isExemptPath(request)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -47,9 +47,9 @@ public class AllowedAppUserEmailFilter extends OncePerRequestFilter {
         response.sendRedirect(request.getContextPath() + "/?error=forbidden");
     }
 
-    private static boolean isExemptPath(String path) {
-        if ("/chartboy/list".equals(path) || "/chartboy/list/suggest".equals(path)
-                || path.startsWith("/chartboy/list/")) {
+    private static boolean isExemptPath(HttpServletRequest request) {
+        String path = ChartboyPublicAccess.normalizedDispatchPath(request);
+        if (ChartboyPublicAccess.isPriceAlertPublicPath(request)) {
             return true;
         }
         if ("/".equals(path) || "/index".equals(path) || "/health".equals(path) || "/favicon.png".equals(path)) {

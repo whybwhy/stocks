@@ -2,6 +2,7 @@ package com.example.stocks.web;
 
 import com.example.stocks.alert.PriceAlertDto;
 import com.example.stocks.supabase.PriceAlertPageResult;
+import com.example.stocks.supabase.PriceAlertTriggerPageResult;
 import com.example.stocks.supabase.SupabaseService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -24,8 +25,9 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Supabase {@code price_alerts} 테이블 조회·등록·수정·삭제.
- * 스키마: {@code src/main/resources/price_alerts.sql}
+ * Supabase {@code price_alerts} 테이블 조회·등록·수정·삭제 및
+ * {@code price_alert_triggers} 돌파 로그 공개 화면({@code /chartboy/log}).
+ * 스키마: {@code src/main/resources/price_alerts.sql}, {@code price_alert_triggers_ddl.sql}
  */
 @Controller
 public class PriceAlertViewController {
@@ -62,6 +64,25 @@ public class PriceAlertViewController {
         Optional<String> search = PriceAlertSearchSanitizer.validated(q);
         boolean rejected = PriceAlertSearchSanitizer.wasRejected(q, search);
         return renderList(model, page, size, "CHARTBOY", null, false, "chartboy/list", true, search, rejected);
+    }
+
+    /** 오타 URL → 정식 경로 */
+    @GetMapping("/chartbody/log")
+    public String chartbodyTypoRedirect() {
+        return "redirect:/chartboy/log";
+    }
+
+    /**
+     * 차트보이(CHARTBOY) 목표가 돌파 로그 공개 조회. 종목명·코드 부분 일치 필터·자동완성·모바일 레이아웃.
+     */
+    @GetMapping("/chartboy/log")
+    public String listChartboyTriggerLog(@RequestParam(name = "page", defaultValue = "1") int page,
+                                         @RequestParam(name = "size", defaultValue = "50") int size,
+                                         @RequestParam(name = "q", required = false) String q,
+                                         Model model) {
+        Optional<String> search = PriceAlertSearchSanitizer.validated(q);
+        boolean rejected = PriceAlertSearchSanitizer.wasRejected(q, search);
+        return renderTriggerLog(model, page, size, search, rejected);
     }
 
     @GetMapping("/admin/price-alerts")
@@ -131,6 +152,17 @@ public class PriceAlertViewController {
     @ResponseBody
     public List<Map<String, String>> suggestChartboyPublic(@RequestParam(name = "q", required = false) String q) {
         return suggest(q, "CHARTBOY");
+    }
+
+    /** 자동완성: 돌파 로그(/chartboy/log) — 트리거 테이블 기준·CHARTBOY 한정 */
+    @GetMapping("/chartboy/log/suggest")
+    @ResponseBody
+    public List<Map<String, String>> suggestChartboyLog(@RequestParam(name = "q", required = false) String q) {
+        Optional<String> v = PriceAlertSearchSanitizer.validated(q);
+        if (v.isEmpty()) {
+            return List.of();
+        }
+        return supabaseService.suggestPriceAlertTriggers(v.get(), "CHARTBOY", 10);
     }
 
     private List<Map<String, String>> suggest(String q, String source) {
@@ -254,6 +286,34 @@ public class PriceAlertViewController {
                 sb.append("&source=").append(URLEncoder.encode(s, StandardCharsets.UTF_8));
             }
         }
+        searchFilter.ifPresent(v -> sb.append("&q=").append(URLEncoder.encode(v, StandardCharsets.UTF_8)));
+        return sb.toString();
+    }
+
+    private String renderTriggerLog(Model model, int page, int size,
+                                     Optional<String> searchFilter, boolean searchRejected) {
+        int safeSize = size > 0 && size <= 200 ? size : DEFAULT_PAGE_SIZE;
+        int safePage = page < 1 ? 1 : page;
+        int offset = (safePage - 1) * safeSize;
+
+        PriceAlertTriggerPageResult result = supabaseService.getPriceAlertTriggers(safeSize, offset, "CHARTBOY", searchFilter);
+
+        model.addAttribute("triggers", result.list());
+        model.addAttribute("totalCount", result.totalCount());
+        model.addAttribute("totalPages", Math.max(1, (int) Math.ceil(result.totalCount() / (double) safeSize)));
+        model.addAttribute("currentPage", safePage);
+        model.addAttribute("pageSize", safeSize);
+        model.addAttribute("today", LocalDate.now(ZoneId.of("Asia/Seoul")));
+        model.addAttribute("listPathPrefix", "chartboy/log");
+        model.addAttribute("searchQuery", searchFilter.orElse(""));
+        model.addAttribute("searchRejected", searchRejected);
+        model.addAttribute("listQueryExtra", buildTriggerLogQueryExtra(searchFilter));
+        model.addAttribute("suggestUrl", "/chartboy/log/suggest");
+        return "price-alerts/trigger-log";
+    }
+
+    private static String buildTriggerLogQueryExtra(Optional<String> searchFilter) {
+        StringBuilder sb = new StringBuilder();
         searchFilter.ifPresent(v -> sb.append("&q=").append(URLEncoder.encode(v, StandardCharsets.UTF_8)));
         return sb.toString();
     }

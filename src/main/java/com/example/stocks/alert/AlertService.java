@@ -18,6 +18,7 @@ import com.example.stocks.kis.DomesticStockQuote;
 import com.example.stocks.kis.KisDomesticDailyBarFetcher;
 import com.example.stocks.kis.KisOverseasPriceFetcher;
 import com.example.stocks.kis.KisPriceFetcher;
+import com.example.stocks.supabase.SupabaseService;
 
 /**
  * Supabase에서 알람을 읽고, 국내/해외 현재가와 비교 후:
@@ -41,17 +42,20 @@ public class AlertService {
     private LocalDate capDate;
 
     private final RestClient supabaseRestClient;
+    private final SupabaseService supabaseService;
     private final TelegramService telegramService;
     private final KisPriceFetcher kisPriceFetcher;
     private final KisOverseasPriceFetcher overseasPriceFetcher;
     private final KisDomesticDailyBarFetcher domesticDailyBarFetcher;
 
     public AlertService(@Qualifier("supabaseRestClient") RestClient supabaseRestClient,
+                        SupabaseService supabaseService,
                         TelegramService telegramService,
                         KisPriceFetcher kisPriceFetcher,
                         KisOverseasPriceFetcher overseasPriceFetcher,
                         KisDomesticDailyBarFetcher domesticDailyBarFetcher) {
         this.supabaseRestClient = supabaseRestClient;
+        this.supabaseService = supabaseService;
         this.telegramService = telegramService;
         this.kisPriceFetcher = kisPriceFetcher;
         this.overseasPriceFetcher = overseasPriceFetcher;
@@ -124,7 +128,9 @@ public class AlertService {
                 boolean active = Boolean.TRUE.equals(alert.getIsActive());
                 if (active && isTriggered(alert, price)) {
                     sendAlert(alert, price, null);
-                    markTriggered(alert.getId());
+                    String ts = ZonedDateTime.now(KST).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+                    markTriggered(alert.getId(), ts);
+                    supabaseService.insertPriceAlertTrigger(alert, price, ts);
                 } else if (!active && isResetCondition(alert, price)) {
                     reactivate(alert.getId(), price, alert);
                 }
@@ -170,7 +176,9 @@ public class AlertService {
             if (active) {
                 if (isTriggered(alert, currentPrice)) {
                     sendAlert(alert, currentPrice, open);
-                    markTriggered(alert.getId());
+                    String ts = ZonedDateTime.now(KST).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+                    markTriggered(alert.getId(), ts);
+                    supabaseService.insertPriceAlertTrigger(alert, currentPrice, ts);
                 }
             } else {
                 if (isResetCondition(alert, currentPrice)) {
@@ -454,9 +462,11 @@ public class AlertService {
                 .toBodilessEntity();
     }
 
-    private void markTriggered(Long id) {
-        String now = ZonedDateTime.now(KST).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
-        String body = "{\"is_active\": false, \"triggered_at\": \"" + now + "\"}";
+    private void markTriggered(Long id, String triggeredAtIso) {
+        String ts = triggeredAtIso != null && !triggeredAtIso.isBlank()
+                ? triggeredAtIso
+                : ZonedDateTime.now(KST).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+        String body = "{\"is_active\": false, \"triggered_at\": \"" + ts + "\"}";
         try {
             supabaseRestClient.patch()
                     .uri(uriBuilder -> uriBuilder

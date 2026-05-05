@@ -8,7 +8,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestClient;
 
 import com.example.stocks.alert.PriceAlertDto;
+import com.example.stocks.alert.PriceAlertTriggerDto;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +22,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class SupabaseService {
+
+    private static final Logger log = LoggerFactory.getLogger(SupabaseService.class);
 
     private final RestClient supabaseRestClient;
 
@@ -64,6 +71,7 @@ public class SupabaseService {
     }
 
     private static final String PRICE_ALERTS_TABLE = "price_alerts";
+    private static final String PRICE_ALERT_TRIGGERS_TABLE = "price_alert_triggers";
 
     /**
      * price_alerts 목록 (id 내림차순). source가 null/blank/ALL 이면 전체.
@@ -154,6 +162,119 @@ public class SupabaseService {
     private static String postgrestDoubleQuoted(String value) {
         String escaped = value.replace("\\", "\\\\").replace("\"", "\\\"");
         return "\"" + escaped + "\"";
+    }
+
+    /**
+     * 목표가 돌파 로그 1건 저장. 실패 시 로그만 남기고 예외는 삼킵니다 (알람 처리 흐름 유지).
+     */
+    public void insertPriceAlertTrigger(PriceAlertDto alert, BigDecimal triggerPrice, String triggeredAtIso) {
+        if (alert == null || alert.getId() == null || triggerPrice == null) {
+            return;
+        }
+        try {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("alert_id", alert.getId());
+            row.put("market", alert.getMarket() != null && !alert.getMarket().isBlank() ? alert.getMarket().trim() : "KR");
+            row.put("stock_code", alert.getStockCode() != null ? alert.getStockCode().trim() : "");
+            row.put("symbol", trimOrNull(alert.getSymbol()));
+            row.put("target_price", alert.getTargetPrice());
+            row.put("condition", alert.getCondition() != null && !alert.getCondition().isBlank()
+                    ? alert.getCondition().trim() : "ABOVE");
+            row.put("trigger_price", triggerPrice);
+            row.put("label", trimOrNull(alert.getLabel()));
+            row.put("source", alert.getSource() != null && !alert.getSource().isBlank() ? alert.getSource().trim() : "MY");
+            if (triggeredAtIso != null && !triggeredAtIso.isBlank()) {
+                row.put("triggered_at", triggeredAtIso);
+            }
+            supabaseRestClient.post()
+                    .uri("/rest/v1/" + PRICE_ALERT_TRIGGERS_TABLE)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Prefer", "return=minimal")
+                    .body(row)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (Exception e) {
+            log.warn("insertPriceAlertTrigger failed alertId={}: {}", alert.getId(), e.getMessage());
+        }
+    }
+
+    /**
+     * 돌파 로그 목록. {@code source} 가 비어 있지 않으면 해당 출처로 필터.
+     * {@code q} 가 있으면 종목명·코드 부분 일치({@code ilike}).
+     */
+    public PriceAlertTriggerPageResult getPriceAlertTriggers(int limit, int offset, String source,
+                                                             Optional<String> q) {
+        ResponseEntity<List<PriceAlertTriggerDto>> response = supabaseRestClient.get()
+                .uri(uriBuilder -> {
+                    uriBuilder
+                            .path("/rest/v1/" + PRICE_ALERT_TRIGGERS_TABLE)
+                            .queryParam("select", "*")
+                            .queryParam("order", "triggered_at.desc")
+                            .queryParam("limit", limit)
+                            .queryParam("offset", offset);
+                    String s = source != null ? source.trim() : "";
+                    if (!s.isEmpty() && !"ALL".equalsIgnoreCase(s)) {
+                        uriBuilder.queryParam("source", "eq." + s);
+                    }
+                    q.ifPresent(v -> {
+                        String pat = postgrestDoubleQuoted("%" + v + "%");
+                        uriBuilder.queryParam("or", "(symbol.ilike." + pat + ",stock_code.ilike." + pat + ")");
+                    });
+                    return uriBuilder.build();
+                })
+                .header("Prefer", "count=exact")
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .toEntity(new ParameterizedTypeReference<List<PriceAlertTriggerDto>>() {});
+        List<PriceAlertTriggerDto> list = response.getBody() != null ? response.getBody() : List.of();
+        long total = parseTotalFromContentRange(response.getHeaders().getFirst("Content-Range"));
+        return new PriceAlertTriggerPageResult(list, total);
+    }
+
+    /**
+     * 돌파 로그 화면 자동완성: 트리거 로그에 나온 종목명·코드 부분 일치 후보.
+     */
+    public List<Map<String, String>> suggestPriceAlertTriggers(String prefix, String source, int max) {
+        if (prefix == null || prefix.isBlank()) {
+            return List.of();
+        }
+        int safeMax = Math.max(1, Math.min(50, max));
+        String pat = postgrestDoubleQuoted("%" + prefix + "%");
+        String orFilter = "(symbol.ilike." + pat + ",stock_code.ilike." + pat + ")";
+        List<Map<String, Object>> rows = supabaseRestClient.get()
+                .uri(uriBuilder -> {
+                    uriBuilder
+                            .path("/rest/v1/" + PRICE_ALERT_TRIGGERS_TABLE)
+                            .queryParam("select", "symbol,stock_code")
+                            .queryParam("or", orFilter)
+                            .queryParam("order", "triggered_at.desc")
+                            .queryParam("limit", safeMax * 6);
+                    String s = source != null ? source.trim() : "";
+                    if (!s.isEmpty() && !"ALL".equalsIgnoreCase(s)) {
+                        uriBuilder.queryParam("source", "eq." + s);
+                    }
+                    return uriBuilder.build();
+                })
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        LinkedHashMap<String, Map<String, String>> distinct = new LinkedHashMap<>();
+        for (Map<String, Object> r : rows) {
+            String symbol = r.get("symbol") != null ? r.get("symbol").toString().trim() : "";
+            String code = r.get("stock_code") != null ? r.get("stock_code").toString().trim() : "";
+            String key = symbol + "|" + code;
+            if (key.equals("|")) {
+                continue;
+            }
+            distinct.computeIfAbsent(key, k -> Map.of("symbol", symbol, "stockCode", code));
+            if (distinct.size() >= safeMax) {
+                break;
+            }
+        }
+        return new java.util.ArrayList<>(distinct.values());
     }
 
     public PriceAlertDto getPriceAlertById(Long id) {
