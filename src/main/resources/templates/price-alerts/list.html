@@ -72,10 +72,9 @@
     </form>
 
     <!-- 페이징 (테이블 위) -->
-    <div class="mb-3 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600"
-         th:if="${totalPages > 1}">
-        <span>페이지 <strong th:text="${currentPage}">1</strong> / <strong th:text="${totalPages}">1</strong></span>
-        <div class="flex flex-wrap gap-2 items-center">
+    <div class="mb-3 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+        <span>총 <strong th:text="${totalCount}">0</strong>건 · 페이지 <strong th:text="${currentPage}">1</strong> / <strong th:text="${totalPages}">1</strong></span>
+        <div class="flex flex-wrap gap-2 items-center" th:if="${totalPages > 1}">
             <a th:if="${currentPage > 1}"
                th:href="|/${listPathPrefix}?page=${currentPage - 1}&size=${pageSize}${listQueryExtra}|"
                class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700">이전</a>
@@ -89,9 +88,10 @@
         <table class="w-max min-w-full divide-y divide-slate-200 text-xs sm:text-sm">
             <thead class="bg-slate-50">
             <tr>
-                <th class="px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">ID</th>
+                <th class="table-cell md:hidden px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">등록</th>
+                <th class="hidden md:table-cell px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">ID</th>
                 <th class="hidden md:table-cell px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">시장</th>
-                <th class="px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">코드</th>
+                <th class="hidden md:table-cell px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">코드</th>
                 <th class="px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">종목명</th>
                 <th class="px-3 sm:px-4 py-3 text-right font-semibold text-slate-500 uppercase tracking-wider">목표가</th>
                 <th class="hidden md:table-cell px-3 sm:px-4 py-3 text-center font-semibold text-slate-500 uppercase tracking-wider">조건</th>
@@ -100,17 +100,21 @@
                 <th th:unless="${readOnly}" class="hidden md:table-cell px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">알람</th>
                 <th class="hidden md:table-cell px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">등록</th>
                 <th th:unless="${readOnly}" class="px-3 sm:px-4 py-3 text-center font-semibold text-slate-500 uppercase tracking-wider w-20">수정</th>
-                <th class="table-cell md:hidden px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">날짜</th>
+                <th class="table-cell md:hidden px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">ID</th>
+                <th class="table-cell md:hidden px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">코드</th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
             <tr th:each="a : ${alerts}" class="hover:bg-slate-50">
-                <td class="px-3 sm:px-4 py-2.5 whitespace-nowrap text-slate-600" th:text="${a.id}">1</td>
+                <td class="table-cell md:hidden px-3 sm:px-4 py-2.5 text-slate-500 text-xs whitespace-nowrap font-mono"
+                    th:with="ca=${a.createdAt != null && #strings.length(a.createdAt) >= 10 ? #strings.substring(a.createdAt, 0, 10) : null}"
+                    th:text="${ca != null and #strings.length(ca) == 10} ? ${#strings.substring(ca, 2, 4) + '.' + #strings.substring(ca, 5, 7) + '.' + #strings.substring(ca, 8, 10)} : '-'">-</td>
+                <td class="hidden md:table-cell px-3 sm:px-4 py-2.5 whitespace-nowrap text-slate-600" th:text="${a.id}">1</td>
                 <td class="hidden md:table-cell px-3 sm:px-4 py-2.5 whitespace-nowrap">
                     <span class="inline-block px-2 py-0.5 rounded border text-xs font-medium border-slate-300 text-slate-700 bg-slate-50"
                           th:text="${a.market != null ? a.market : 'KR'}">KR</span>
                 </td>
-                <td class="px-3 sm:px-4 py-2.5 whitespace-nowrap font-mono text-slate-700" th:text="${a.stockCode}">005930</td>
+                <td class="hidden md:table-cell px-3 sm:px-4 py-2.5 whitespace-nowrap font-mono text-slate-700" th:text="${a.stockCode}">005930</td>
                 <td class="px-3 sm:px-4 py-2.5 font-medium text-slate-800" th:text="${a.symbol}">삼성전자</td>
                 <td class="px-3 sm:px-4 py-2.5 text-right text-slate-800 whitespace-nowrap font-mono text-xs"
                     th:with="tp=${a.targetPrice != null ? a.targetPrice.setScale(0, T(java.math.RoundingMode).HALF_UP) : null}"
@@ -131,12 +135,11 @@
                     <a th:href="|/${listPathPrefix}/edit?id=${a.id}|"
                        class="text-xs px-2 py-1 rounded border border-slate-300 text-slate-600 hover:bg-slate-100">수정</a>
                 </td>
-                <td class="table-cell md:hidden px-3 sm:px-4 py-2.5 text-slate-500 text-xs whitespace-nowrap font-mono"
-                    th:with="ca=${a.createdAt != null && #strings.length(a.createdAt) >= 10 ? #strings.substring(a.createdAt, 0, 10) : null}"
-                    th:text="${ca != null and #strings.length(ca) == 10} ? ${#strings.substring(ca, 2, 4) + '.' + #strings.substring(ca, 5, 7) + '.' + #strings.substring(ca, 8, 10)} : '-'">-</td>
+                <td class="table-cell md:hidden px-3 sm:px-4 py-2.5 whitespace-nowrap text-slate-600" th:text="${a.id}">1</td>
+                <td class="table-cell md:hidden px-3 sm:px-4 py-2.5 whitespace-nowrap font-mono text-slate-700" th:text="${a.stockCode}">005930</td>
             </tr>
             <tr th:if="${#lists.isEmpty(alerts)}">
-                <td th:colspan="${readOnly ? 9 : 12}" class="px-4 py-8 text-center text-slate-500">데이터가 없거나 Supabase 연동을 확인하세요.</td>
+                <td th:colspan="${readOnly ? 11 : 14}" class="px-4 py-8 text-center text-slate-500">데이터가 없거나 Supabase 연동을 확인하세요.</td>
             </tr>
             </tbody>
         </table>
