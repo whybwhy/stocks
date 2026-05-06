@@ -1,8 +1,17 @@
 package com.example.stocks.alert;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.math.BigDecimal;
+import java.time.DateTimeException;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 
 /** Supabase {@code price_alert_triggers} 행. */
 public class PriceAlertTriggerDto {
@@ -111,6 +120,43 @@ public class PriceAlertTriggerDto {
 
     public void setTriggeredAt(String triggeredAt) {
         this.triggeredAt = triggeredAt;
+    }
+
+    /**
+     * 화면용: {@code triggered_at} 을 한국 표준시(Asia/Seoul, UTC+9)로 맞춘 뒤 {@code yyyy-MM-dd HH:mm} 형식.
+     * Supabase JSON(ISO-8601, Z/오프셋/naive)을 최대한 수용합니다.
+     */
+    @JsonIgnore
+    public String getTriggeredAtKst() {
+        if (triggeredAt == null || triggeredAt.isBlank()) {
+            return "-";
+        }
+        String raw = triggeredAt.trim();
+        try {
+            ZonedDateTime kst = toSeoul(raw);
+            return kst.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+        } catch (DateTimeException e) {
+            return raw;
+        }
+    }
+
+    private static ZonedDateTime toSeoul(String raw) {
+        String s = raw.length() > 10 && raw.charAt(10) == ' ' ? raw.substring(0, 10) + 'T' + raw.substring(11) : raw;
+        ZoneId seoul = ZoneId.of("Asia/Seoul");
+        try {
+            return OffsetDateTime.parse(s).atZoneSameInstant(seoul);
+        } catch (DateTimeParseException ignored) {
+        }
+        try {
+            return Instant.parse(s).atZone(seoul);
+        } catch (DateTimeParseException ignored) {
+        }
+        try {
+            return ZonedDateTime.parse(s).withZoneSameInstant(seoul);
+        } catch (DateTimeParseException ignored) {
+        }
+        LocalDateTime ldt = LocalDateTime.parse(s, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        return ldt.atZone(seoul);
     }
 
     public boolean isUs() {

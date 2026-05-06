@@ -10,8 +10,10 @@
 <body class="bg-slate-100 min-h-screen">
 <div class="w-full max-w-[100rem] mx-auto p-4 sm:p-6">
     <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
-        <div>
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
             <h1 class="text-xl sm:text-2xl font-bold text-slate-800">로그</h1>
+            <a href="/chartboy/list"
+               class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm hover:bg-slate-50">메인 목록</a>
         </div>
     </div>
 
@@ -40,9 +42,7 @@
         <a th:if="${!#strings.isEmpty(searchQuery)}"
            th:href="|/${listPathPrefix}?size=${pageSize}|"
            role="button"
-           class="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50">로그전체목록</a>
-           <a href="/chartboy/list"
-           class="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50">종목전체목록</a>
+           class="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50">전체</a>
     </form>
 
     <div class="mb-3 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
@@ -61,7 +61,7 @@
         <table class="w-max min-w-full divide-y divide-slate-200 text-xs sm:text-sm">
             <thead class="bg-slate-50">
             <tr>
-                <th class="px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">돌파 시각</th>
+                <th class="px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">돌파 시각 <span class="font-normal normal-case text-slate-400">(KST)</span></th>
                 <th class="px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">종목명</th>
                 <th class="hidden sm:table-cell px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">코드</th>
                 <th class="px-3 sm:px-4 py-3 text-right font-semibold text-slate-500 uppercase tracking-wider">목표가</th>
@@ -74,8 +74,7 @@
             <tbody class="divide-y divide-slate-100">
             <tr th:each="t : ${triggers}" class="hover:bg-slate-50">
                 <td class="px-3 sm:px-4 py-2.5 text-slate-600 whitespace-nowrap font-mono text-xs"
-                    th:with="ts=${t.triggeredAt}"
-                    th:text="${ts != null && #strings.length(ts) >= 16} ? ${#strings.substring(ts,0,10) + ' ' + #strings.substring(ts,11,16)} : (ts != null ? ts : '-')">-</td>
+                    th:text="${t.triggeredAtKst}">-</td>
                 <td class="px-3 sm:px-4 py-2.5 font-medium text-slate-800" th:text="${t.symbol}">-</td>
                 <td class="hidden sm:table-cell px-3 sm:px-4 py-2.5 font-mono text-slate-700" th:text="${t.stockCode}">-</td>
                 <td class="px-3 sm:px-4 py-2.5 text-right whitespace-nowrap font-mono text-xs text-slate-800"
