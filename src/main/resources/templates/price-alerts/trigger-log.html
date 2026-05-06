@@ -13,9 +13,6 @@
         <div>
             <h1 class="text-xl sm:text-2xl font-bold text-slate-800">로그</h1>
         </div>
-        <div class="flex flex-wrap gap-2 text-sm">
-            <a href="/chartboy/list" class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50">메인 목록</a>
-        </div>
     </div>
 
     <p th:if="${searchRejected}"
@@ -43,7 +40,9 @@
         <a th:if="${!#strings.isEmpty(searchQuery)}"
            th:href="|/${listPathPrefix}?size=${pageSize}|"
            role="button"
-           class="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50">전체</a>
+           class="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50">로그전체목록</a>
+           <a href="/chartboy/list"
+           class="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50">종목전체목록</a>
     </form>
 
     <div class="mb-3 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">

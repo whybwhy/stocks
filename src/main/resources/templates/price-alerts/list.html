@@ -13,9 +13,6 @@
         <div>
             <h1 class="text-xl sm:text-2xl font-bold text-slate-800"></h1>
         </div>
-        <div th:if="${readOnly}" class="flex flex-wrap gap-2 text-sm">
-            <a href="/chartboy/log" class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50">돌파 로그</a>
-        </div>
     </div>
 
     <p th:if="${error != null}" class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" th:text="${error}"></p>
@@ -41,9 +38,11 @@
         </div>
         <button type="submit" class="px-4 py-2 rounded-lg bg-slate-700 text-white text-sm hover:bg-slate-600">검색</button>
         <a th:if="${!#strings.isEmpty(searchQuery)}"
-           th:href="|/${listPathPrefix}?size=${pageSize}|"
-           role="button"
-           class="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50">목록으로</a>
+        th:href="|/${listPathPrefix}?size=${pageSize}|"
+        role="button"
+        class="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50">전체목록</a>
+        <a th:if="${readOnly}" href="/chartboy/log"
+           class="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50">로그</a>
     </form>
 
     <!-- 목록 필터 (로그인·관리 화면) -->
