@@ -103,7 +103,6 @@ public class SupabaseService {
                     return uriBuilder.build();
                 })
                 .header("Prefer", "count=estimated")
-                .header("Accept-Encoding", "gzip")
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
                 .toEntity(new ParameterizedTypeReference<List<PriceAlertDto>>() {});
@@ -229,7 +228,6 @@ public class SupabaseService {
                     return uriBuilder.build();
                 })
                 .header("Prefer", "count=estimated")
-                .header("Accept-Encoding", "gzip")
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
                 .toEntity(new ParameterizedTypeReference<List<PriceAlertTriggerDto>>() {});

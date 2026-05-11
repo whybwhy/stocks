@@ -456,7 +456,6 @@ public class AlertService {
                             .queryParam("order", "id.asc")
                             .build())
                     .accept(MediaType.APPLICATION_JSON)
-                    .header("Accept-Encoding", "gzip")
                     .retrieve()
                     .body(new ParameterizedTypeReference<List<PriceAlertDto>>() {});
             return list != null ? list : List.of();
