@@ -73,6 +73,11 @@ public class SupabaseService {
     private static final String PRICE_ALERTS_TABLE = "price_alerts";
     private static final String PRICE_ALERT_TRIGGERS_TABLE = "price_alert_triggers";
 
+    private static final String PRICE_ALERT_SELECT_COLUMNS =
+            "id,market,stock_code,symbol,target_price,condition,label,source,is_active,triggered_at,created_at";
+    private static final String PRICE_ALERT_TRIGGER_SELECT_COLUMNS =
+            "id,alert_id,market,stock_code,symbol,target_price,condition,trigger_price,label,source,triggered_at";
+
     /**
      * price_alerts 목록 (id 내림차순). source가 null/blank/ALL 이면 전체.
      * 그 외에는 CHARTBOY, MY, MANUAL 중 하나로 필터.
@@ -85,7 +90,7 @@ public class SupabaseService {
                 .uri(uriBuilder -> {
                     uriBuilder
                             .path("/rest/v1/" + PRICE_ALERTS_TABLE)
-                            .queryParam("select", "*")
+                            .queryParam("select", PRICE_ALERT_SELECT_COLUMNS)
                             .queryParam("order", "id.desc")
                             .queryParam("limit", limit)
                             .queryParam("offset", offset);
@@ -97,7 +102,8 @@ public class SupabaseService {
                             uriBuilder.queryParam("or", postgrestSymbolOrStockCodeOr(v)));
                     return uriBuilder.build();
                 })
-                .header("Prefer", "count=exact")
+                .header("Prefer", "count=estimated")
+                .header("Accept-Encoding", "gzip")
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
                 .toEntity(new ParameterizedTypeReference<List<PriceAlertDto>>() {});
@@ -208,7 +214,7 @@ public class SupabaseService {
                 .uri(uriBuilder -> {
                     uriBuilder
                             .path("/rest/v1/" + PRICE_ALERT_TRIGGERS_TABLE)
-                            .queryParam("select", "*")
+                            .queryParam("select", PRICE_ALERT_TRIGGER_SELECT_COLUMNS)
                             .queryParam("order", "triggered_at.desc")
                             .queryParam("limit", limit)
                             .queryParam("offset", offset);
@@ -222,7 +228,8 @@ public class SupabaseService {
                     });
                     return uriBuilder.build();
                 })
-                .header("Prefer", "count=exact")
+                .header("Prefer", "count=estimated")
+                .header("Accept-Encoding", "gzip")
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
                 .toEntity(new ParameterizedTypeReference<List<PriceAlertTriggerDto>>() {});

@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import com.example.stocks.kis.DomesticStockQuote;
@@ -32,6 +33,17 @@ public class AlertService {
 
     private static final Logger log = LoggerFactory.getLogger(AlertService.class);
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+
+    /**
+     * 알람 체크 핫패스용 인메모리 스냅샷. Supabase egress 절감 목적.
+     * - 만료 시간 안에 재호출되면 DB hit 없이 캐시 사용.
+     * - 등록/삭제/수정/markTriggered/reactivate 시 즉시 갱신해 정합성 유지.
+     */
+    private static final long ALERTS_CACHE_TTL_NANOS = 30_000_000_000L; // 30s
+    private static final String ALERT_SELECT_COLUMNS =
+            "id,market,stock_code,symbol,target_price,condition,label,source,is_active,triggered_at,created_at";
+    private final AtomicReference<List<PriceAlertDto>> alertsSnapshot = new AtomicReference<>(List.of());
+    private volatile long alertsSnapshotAtNanos = 0L;
 
     /** 갭 상승(전일종가 < 오늘시가) 일별 알림 추적. 날짜 변경 시 자동 초기화. */
     private final Set<String> gapUpNotifiedCodes = new HashSet<>();
@@ -67,10 +79,13 @@ public class AlertService {
      * KR/US 각각 장 시간일 때만 해당 시장 알람을 체크.
      */
     public void checkAlerts() {
-        List<PriceAlertDto> allAlerts = getAllAlerts();
-        if (allAlerts.isEmpty()) return;
-
         ZonedDateTime nowKst = ZonedDateTime.now(KST);
+        // KR/US 둘 다 장 외이면 DB 호출 자체를 건너뜀 (Supabase egress 절감).
+        if (!isKrMarketTime(nowKst) && !isUsMarketTime(nowKst)) {
+            return;
+        }
+        List<PriceAlertDto> allAlerts = getCachedAlerts();
+        if (allAlerts.isEmpty()) return;
 
         // 국내 알람 체크
         if (isKrMarketTime(nowKst) && kisPriceFetcher != null && kisPriceFetcher.isConfigured()) {
@@ -144,7 +159,8 @@ public class AlertService {
     public void checkSingleAlert(String stockCode, BigDecimal currentPrice) {
         if (stockCode == null || currentPrice == null) return;
 
-        List<PriceAlertDto> allAlerts = getAllAlerts();
+        // WebSocket 콜백 핫패스: 30초 인메모리 캐시 사용 (체결 콜백마다 DB hit 방지)
+        List<PriceAlertDto> allAlerts = getCachedAlerts();
         List<PriceAlertDto> matched = allAlerts.stream()
                 .filter(a -> stockCode.equals(a.getStockCode()))
                 .collect(Collectors.toList());
@@ -399,34 +415,48 @@ public class AlertService {
     // ─── Supabase CRUD ───
 
     public List<PriceAlertDto> getActiveAlerts() {
-        try {
-            List<PriceAlertDto> list = supabaseRestClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/rest/v1/price_alerts")
-                            .queryParam("select", "*")
-                            .queryParam("is_active", "eq.true")
-                            .queryParam("order", "id.asc")
-                            .build())
-                    .accept(MediaType.APPLICATION_JSON)
-                    .retrieve()
-                    .body(new ParameterizedTypeReference<List<PriceAlertDto>>() {});
-            return list != null ? list : List.of();
-        } catch (Exception e) {
-            Throwable cause = e.getCause() != null ? e.getCause() : e;
-            log.error("Failed to fetch active alerts: {} cause={}", e.getMessage(), cause.getMessage(), e);
-            return List.of();
-        }
+        // WebSocket 구독 갱신 등에서 활성 알람만 필요. 캐시 위에서 필터해 egress 절감.
+        return getCachedAlerts().stream()
+                .filter(a -> Boolean.TRUE.equals(a.getIsActive()))
+                .collect(Collectors.toList());
     }
 
     public List<PriceAlertDto> getAllAlerts() {
+        return getCachedAlerts();
+    }
+
+    /**
+     * 알람 스냅샷 반환. 30초 TTL 캐시. TTL 만료 또는 캐시 비어 있으면 1회 DB select 후 갱신.
+     * 등록/삭제/수정 등 mutator 후에는 {@link #invalidateAlertsCache()} 로 즉시 갱신을 유도.
+     */
+    public List<PriceAlertDto> getCachedAlerts() {
+        long now = System.nanoTime();
+        List<PriceAlertDto> snapshot = alertsSnapshot.get();
+        if (snapshot != null && !snapshot.isEmpty()
+                && (now - alertsSnapshotAtNanos) < ALERTS_CACHE_TTL_NANOS) {
+            return snapshot;
+        }
+        List<PriceAlertDto> fresh = fetchAlertsFromSupabase();
+        alertsSnapshot.set(fresh);
+        alertsSnapshotAtNanos = now;
+        return fresh;
+    }
+
+    /** 인서트/업데이트/삭제 후 호출. 다음 핫패스 호출에서 즉시 재로드. */
+    public void invalidateAlertsCache() {
+        alertsSnapshotAtNanos = 0L;
+    }
+
+    private List<PriceAlertDto> fetchAlertsFromSupabase() {
         try {
             List<PriceAlertDto> list = supabaseRestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/rest/v1/price_alerts")
-                            .queryParam("select", "*")
+                            .queryParam("select", ALERT_SELECT_COLUMNS)
                             .queryParam("order", "id.asc")
                             .build())
                     .accept(MediaType.APPLICATION_JSON)
+                    .header("Accept-Encoding", "gzip")
                     .retrieve()
                     .body(new ParameterizedTypeReference<List<PriceAlertDto>>() {});
             return list != null ? list : List.of();
@@ -434,6 +464,28 @@ public class AlertService {
             Throwable cause = e.getCause() != null ? e.getCause() : e;
             log.error("Failed to fetch alerts: {} cause={}", e.getMessage(), cause.getMessage(), e);
             return List.of();
+        }
+    }
+
+    /** 캐시 내 단일 알람의 is_active 상태를 즉시 반영 (중복 발송 방지). */
+    private void updateCachedActive(Long id, boolean active, String triggeredAtIso) {
+        if (id == null) return;
+        List<PriceAlertDto> current = alertsSnapshot.get();
+        if (current == null || current.isEmpty()) return;
+        boolean changed = false;
+        List<PriceAlertDto> next = new ArrayList<>(current.size());
+        for (PriceAlertDto a : current) {
+            if (id.equals(a.getId())) {
+                a.setIsActive(active);
+                if (triggeredAtIso != null && !triggeredAtIso.isBlank()) {
+                    a.setTriggeredAt(triggeredAtIso);
+                }
+                changed = true;
+            }
+            next.add(a);
+        }
+        if (changed) {
+            alertsSnapshot.set(next);
         }
     }
 
@@ -449,6 +501,7 @@ public class AlertService {
                 .body(dto)
                 .retrieve()
                 .body(new ParameterizedTypeReference<List<PriceAlertDto>>() {});
+        invalidateAlertsCache();
         return result != null && !result.isEmpty() ? result.get(0) : dto;
     }
 
@@ -460,12 +513,15 @@ public class AlertService {
                         .build())
                 .retrieve()
                 .toBodilessEntity();
+        invalidateAlertsCache();
     }
 
     private void markTriggered(Long id, String triggeredAtIso) {
         String ts = triggeredAtIso != null && !triggeredAtIso.isBlank()
                 ? triggeredAtIso
                 : ZonedDateTime.now(KST).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+        // 다음 핫패스 호출에서 중복 발송되지 않도록 캐시를 먼저 갱신한다 (DB 응답을 기다리지 않음).
+        updateCachedActive(id, false, ts);
         String body = "{\"is_active\": false, \"triggered_at\": \"" + ts + "\"}";
         try {
             supabaseRestClient.patch()
@@ -485,6 +541,7 @@ public class AlertService {
     private void reactivate(Long id, BigDecimal currentPrice, PriceAlertDto alert) {
         String symbolDisplay = alert.getSymbol() != null && !alert.getSymbol().isBlank()
                 ? alert.getSymbol() : alert.getStockCode();
+        updateCachedActive(id, true, null);
         try {
             supabaseRestClient.patch()
                     .uri(uriBuilder -> uriBuilder

@@ -1,10 +1,13 @@
 package com.example.stocks.web;
 
+import com.example.stocks.alert.AlertService;
 import com.example.stocks.alert.PriceAlertDto;
 import com.example.stocks.config.AppProperties;
 import com.example.stocks.supabase.PriceAlertPageResult;
 import com.example.stocks.supabase.PriceAlertTriggerPageResult;
 import com.example.stocks.supabase.SupabaseService;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Controller;
@@ -34,13 +37,18 @@ import java.util.Optional;
 public class PriceAlertViewController {
 
     private static final int DEFAULT_PAGE_SIZE = 50;
+    /** 공개 페이지 응답 캐시 (초). 브라우저·중간 캐시 모두에서 30초 동안 재사용 → Supabase egress 절감. */
+    private static final String PUBLIC_CACHE_CONTROL = "public, max-age=30";
 
     private final SupabaseService supabaseService;
     private final AppProperties appProperties;
+    private final AlertService alertService;
 
-    public PriceAlertViewController(SupabaseService supabaseService, AppProperties appProperties) {
+    public PriceAlertViewController(SupabaseService supabaseService, AppProperties appProperties,
+                                    AlertService alertService) {
         this.supabaseService = supabaseService;
         this.appProperties = appProperties;
+        this.alertService = alertService;
     }
 
     @GetMapping("/price-alerts")
@@ -63,9 +71,11 @@ public class PriceAlertViewController {
     public String listChartboyPublic(@RequestParam(name = "page", defaultValue = "1") int page,
                                      @RequestParam(name = "size", defaultValue = "50") int size,
                                      @RequestParam(name = "q", required = false) String q,
+                                     HttpServletResponse response,
                                      Model model) {
         Optional<String> search = PriceAlertSearchSanitizer.validated(q);
         boolean rejected = PriceAlertSearchSanitizer.wasRejected(q, search);
+        response.setHeader(HttpHeaders.CACHE_CONTROL, PUBLIC_CACHE_CONTROL);
         return renderList(model, page, size, "CHARTBOY", null, false, publicListPathPrefix(), true, search, rejected);
     }
 
@@ -82,9 +92,11 @@ public class PriceAlertViewController {
     public String listChartboyTriggerLog(@RequestParam(name = "page", defaultValue = "1") int page,
                                          @RequestParam(name = "size", defaultValue = "50") int size,
                                          @RequestParam(name = "q", required = false) String q,
+                                         HttpServletResponse response,
                                          Model model) {
         Optional<String> search = PriceAlertSearchSanitizer.validated(q);
         boolean rejected = PriceAlertSearchSanitizer.wasRejected(q, search);
+        response.setHeader(HttpHeaders.CACHE_CONTROL, PUBLIC_CACHE_CONTROL);
         return renderTriggerLog(model, page, size, search, rejected);
     }
 
@@ -131,6 +143,7 @@ public class PriceAlertViewController {
     @PostMapping("/price-alerts/delete")
     public String deleteUser(@RequestParam("id") Long id) {
         supabaseService.deletePriceAlert(id);
+        alertService.invalidateAlertsCache();
         return "redirect:/price-alerts";
     }
 
@@ -153,14 +166,18 @@ public class PriceAlertViewController {
     /** 자동완성: 공개(/chartboy/list) — 항상 CHARTBOY 한정 */
     @GetMapping("${app.price-alert-public-slug}/list/suggest")
     @ResponseBody
-    public List<Map<String, String>> suggestChartboyPublic(@RequestParam(name = "q", required = false) String q) {
+    public List<Map<String, String>> suggestChartboyPublic(@RequestParam(name = "q", required = false) String q,
+                                                           HttpServletResponse response) {
+        response.setHeader(HttpHeaders.CACHE_CONTROL, PUBLIC_CACHE_CONTROL);
         return suggest(q, "CHARTBOY");
     }
 
     /** 자동완성: 돌파 로그 공개 URL — 트리거 테이블 기준·CHARTBOY 한정 */
     @GetMapping("${app.price-alert-public-slug}/log/suggest")
     @ResponseBody
-    public List<Map<String, String>> suggestChartboyLog(@RequestParam(name = "q", required = false) String q) {
+    public List<Map<String, String>> suggestChartboyLog(@RequestParam(name = "q", required = false) String q,
+                                                        HttpServletResponse response) {
+        response.setHeader(HttpHeaders.CACHE_CONTROL, PUBLIC_CACHE_CONTROL);
         Optional<String> v = PriceAlertSearchSanitizer.validated(q);
         if (v.isEmpty()) {
             return List.of();
@@ -177,6 +194,7 @@ public class PriceAlertViewController {
     @PostMapping("/admin/price-alerts/delete")
     public String deleteAdmin(@RequestParam("id") Long id) {
         supabaseService.deletePriceAlert(id);
+        alertService.invalidateAlertsCache();
         return "redirect:/admin/price-alerts";
     }
 
@@ -190,6 +208,7 @@ public class PriceAlertViewController {
             } else {
                 supabaseService.insertPriceAlert(dto);
             }
+            alertService.invalidateAlertsCache();
             return "redirect:/" + listPathPrefix;
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
