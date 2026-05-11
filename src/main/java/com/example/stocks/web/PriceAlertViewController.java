@@ -1,6 +1,7 @@
 package com.example.stocks.web;
 
 import com.example.stocks.alert.PriceAlertDto;
+import com.example.stocks.config.AppProperties;
 import com.example.stocks.supabase.PriceAlertPageResult;
 import com.example.stocks.supabase.PriceAlertTriggerPageResult;
 import com.example.stocks.supabase.SupabaseService;
@@ -26,7 +27,7 @@ import java.util.Optional;
 
 /**
  * Supabase {@code price_alerts} 테이블 조회·등록·수정·삭제 및
- * {@code price_alert_triggers} 돌파 로그 공개 화면({@code /chartboy/log}).
+ * {@code price_alert_triggers} 돌파 로그 공개 화면({@code /{app.price-alert-public-slug}/log}).
  * 스키마: {@code src/main/resources/price_alerts.sql}, {@code price_alert_triggers_ddl.sql}
  */
 @Controller
@@ -35,9 +36,11 @@ public class PriceAlertViewController {
     private static final int DEFAULT_PAGE_SIZE = 50;
 
     private final SupabaseService supabaseService;
+    private final AppProperties appProperties;
 
-    public PriceAlertViewController(SupabaseService supabaseService) {
+    public PriceAlertViewController(SupabaseService supabaseService, AppProperties appProperties) {
         this.supabaseService = supabaseService;
+        this.appProperties = appProperties;
     }
 
     @GetMapping("/price-alerts")
@@ -56,26 +59,26 @@ public class PriceAlertViewController {
     /**
      * 카카오 로그인 없이 목표가 알람 목록만 조회 (등록·수정·삭제 URL은 제공하지 않음).
      */
-    @GetMapping("/chartboy/list")
+    @GetMapping("${app.price-alert-public-slug}/list")
     public String listChartboyPublic(@RequestParam(name = "page", defaultValue = "1") int page,
                                      @RequestParam(name = "size", defaultValue = "50") int size,
                                      @RequestParam(name = "q", required = false) String q,
                                      Model model) {
         Optional<String> search = PriceAlertSearchSanitizer.validated(q);
         boolean rejected = PriceAlertSearchSanitizer.wasRejected(q, search);
-        return renderList(model, page, size, "CHARTBOY", null, false, "chartboy/list", true, search, rejected);
+        return renderList(model, page, size, "CHARTBOY", null, false, publicListPathPrefix(), true, search, rejected);
     }
 
     /** 오타 URL → 정식 경로 */
     @GetMapping("/chartbody/log")
     public String chartbodyTypoRedirect() {
-        return "redirect:/chartboy/log";
+        return "redirect:" + appProperties.publicPriceAlertLogPath();
     }
 
     /**
      * 차트보이(CHARTBOY) 목표가 돌파 로그 공개 조회. 종목명·코드 부분 일치 필터·자동완성·모바일 레이아웃.
      */
-    @GetMapping("/chartboy/log")
+    @GetMapping("${app.price-alert-public-slug}/log")
     public String listChartboyTriggerLog(@RequestParam(name = "page", defaultValue = "1") int page,
                                          @RequestParam(name = "size", defaultValue = "50") int size,
                                          @RequestParam(name = "q", required = false) String q,
@@ -148,14 +151,14 @@ public class PriceAlertViewController {
     }
 
     /** 자동완성: 공개(/chartboy/list) — 항상 CHARTBOY 한정 */
-    @GetMapping("/chartboy/list/suggest")
+    @GetMapping("${app.price-alert-public-slug}/list/suggest")
     @ResponseBody
     public List<Map<String, String>> suggestChartboyPublic(@RequestParam(name = "q", required = false) String q) {
         return suggest(q, "CHARTBOY");
     }
 
-    /** 자동완성: 돌파 로그(/chartboy/log) — 트리거 테이블 기준·CHARTBOY 한정 */
-    @GetMapping("/chartboy/log/suggest")
+    /** 자동완성: 돌파 로그 공개 URL — 트리거 테이블 기준·CHARTBOY 한정 */
+    @GetMapping("${app.price-alert-public-slug}/log/suggest")
     @ResponseBody
     public List<Map<String, String>> suggestChartboyLog(@RequestParam(name = "q", required = false) String q) {
         Optional<String> v = PriceAlertSearchSanitizer.validated(q);
@@ -271,12 +274,16 @@ public class PriceAlertViewController {
         model.addAttribute("searchRejected", searchRejected);
         model.addAttribute("listQueryExtra", buildListQueryExtra(source, searchFilter, readOnly));
         model.addAttribute("suggestUrl", "/" + listPathPrefix + "/suggest");
+        if (readOnly) {
+            model.addAttribute("publicPriceAlertListPath", appProperties.publicPriceAlertListPath());
+            model.addAttribute("publicPriceAlertLogPath", appProperties.publicPriceAlertLogPath());
+        }
         return "price-alerts/list";
     }
 
     /**
      * 페이징·검색 링크용 쿼리 조각 ({@code &} 로 시작하는 연결).
-     * {@code /chartboy/list}({@code readOnly})는 API에서 항상 CHARTBOY만 조회하므로 URL에 {@code source} 를 넣지 않음.
+     * 공개 목록({@code readOnly})은 API에서 항상 CHARTBOY만 조회하므로 URL에 {@code source} 를 넣지 않음.
      */
     private static String buildListQueryExtra(String source, Optional<String> searchFilter, boolean chartboyPublicList) {
         StringBuilder sb = new StringBuilder();
@@ -304,12 +311,22 @@ public class PriceAlertViewController {
         model.addAttribute("currentPage", safePage);
         model.addAttribute("pageSize", safeSize);
         model.addAttribute("today", LocalDate.now(ZoneId.of("Asia/Seoul")));
-        model.addAttribute("listPathPrefix", "chartboy/log");
+        model.addAttribute("listPathPrefix", publicLogPathPrefix());
         model.addAttribute("searchQuery", searchFilter.orElse(""));
         model.addAttribute("searchRejected", searchRejected);
         model.addAttribute("listQueryExtra", buildTriggerLogQueryExtra(searchFilter));
-        model.addAttribute("suggestUrl", "/chartboy/log/suggest");
+        model.addAttribute("suggestUrl", appProperties.publicPriceAlertLogPath() + "/suggest");
+        model.addAttribute("publicPriceAlertListPath", appProperties.publicPriceAlertListPath());
+        model.addAttribute("publicPriceAlertLogPath", appProperties.publicPriceAlertLogPath());
         return "price-alerts/trigger-log";
+    }
+
+    private String publicListPathPrefix() {
+        return appProperties.normalizedPriceAlertPublicSlug() + "/list";
+    }
+
+    private String publicLogPathPrefix() {
+        return appProperties.normalizedPriceAlertPublicSlug() + "/log";
     }
 
     private static String buildTriggerLogQueryExtra(Optional<String> searchFilter) {

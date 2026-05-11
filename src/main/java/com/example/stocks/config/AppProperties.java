@@ -17,6 +17,12 @@ import java.util.Locale;
 @ConfigurationProperties(prefix = "app")
 public class AppProperties {
 
+    /**
+     * 공개 price_alerts 목록·돌파 로그 URL 접두사 ({@code /{slug}/list}, {@code /{slug}/log}).
+     * 슬래시 없이 영문·숫자만 (예: {@code chartboy}, {@code x7k9m2}).
+     */
+    private String priceAlertPublicSlug = "chartboy";
+
     private List<String> allowedKakaoAccounts = new ArrayList<>();
 
     /**
@@ -31,6 +37,40 @@ public class AppProperties {
 
     public void setAllowedKakaoAccounts(List<String> allowedKakaoAccounts) {
         this.allowedKakaoAccounts = allowedKakaoAccounts != null ? allowedKakaoAccounts : new ArrayList<>();
+    }
+
+    public String getPriceAlertPublicSlug() {
+        return priceAlertPublicSlug;
+    }
+
+    public void setPriceAlertPublicSlug(String priceAlertPublicSlug) {
+        this.priceAlertPublicSlug = priceAlertPublicSlug;
+    }
+
+    /** {@code app.price-alert-public-slug} 정규화 (빈 값·슬래시 제거, 미허용 문자는 chartboy). */
+    public String normalizedPriceAlertPublicSlug() {
+        if (priceAlertPublicSlug == null || priceAlertPublicSlug.isBlank()) {
+            return "chartboy";
+        }
+        String slug = priceAlertPublicSlug.trim();
+        if (slug.startsWith("/")) {
+            slug = slug.substring(1);
+        }
+        if (slug.endsWith("/")) {
+            slug = slug.substring(0, slug.length() - 1);
+        }
+        if (!slug.matches("[A-Za-z0-9]{1,32}")) {
+            return "chartboy";
+        }
+        return slug;
+    }
+
+    public String publicPriceAlertListPath() {
+        return "/" + normalizedPriceAlertPublicSlug() + "/list";
+    }
+
+    public String publicPriceAlertLogPath() {
+        return "/" + normalizedPriceAlertPublicSlug() + "/log";
     }
 
     public String getAllowedUserEmails() {

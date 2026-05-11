@@ -1,24 +1,34 @@
 package com.example.stocks.config;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.stereotype.Component;
 
 /**
- * 차트보이 가격 알람 공개 URL (비로그인). 보안·이메일 필터에서 동일 판별을 씁니다.
+ * 공개 price_alerts URL ({@code /{app.price-alert-public-slug}/list|log}) 판별.
  */
-public final class ChartboyPublicAccess {
+@Component
+public class ChartboyPublicAccess {
 
-    private ChartboyPublicAccess() {
+    private final AppProperties appProperties;
+
+    public ChartboyPublicAccess(AppProperties appProperties) {
+        this.appProperties = appProperties;
     }
 
-    public static boolean isPriceAlertPublicPath(HttpServletRequest request) {
+    public boolean isPriceAlertPublicPath(HttpServletRequest request) {
         String path = normalizedDispatchPath(request);
-        if ("/chartboy/list".equals(path) || path.startsWith("/chartboy/list/")) {
+        String slug = appProperties.normalizedPriceAlertPublicSlug();
+        if (pathEqualsOrChild(path, "/" + slug + "/list")) {
             return true;
         }
-        if ("/chartboy/log".equals(path) || path.startsWith("/chartboy/log/")) {
+        if (pathEqualsOrChild(path, "/" + slug + "/log")) {
             return true;
         }
         return "/chartbody/log".equals(path);
+    }
+
+    private static boolean pathEqualsOrChild(String path, String base) {
+        return base.equals(path) || path.startsWith(base + "/");
     }
 
     public static String normalizedDispatchPath(HttpServletRequest request) {

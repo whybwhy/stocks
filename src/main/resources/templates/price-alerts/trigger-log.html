@@ -14,7 +14,7 @@
             <h1 class="text-xl sm:text-2xl font-bold text-slate-800">로그</h1>
         </div>
         <div class="flex flex-wrap items-center gap-2 shrink-0">
-            <a href="/chartboy/list"
+            <a th:href="${publicPriceAlertListPath}"
                class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm hover:bg-slate-50">메인 목록</a>
         </div>
     </div>
@@ -32,8 +32,7 @@
                    role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="q-log-suggest"
                    data-suggest-input
                    data-auto-query-nav="true"
-                   data-base-path="/chartboy/log"
-                   th:attr="data-suggest-url=${suggestUrl}"
+                   th:attr="data-base-path=${publicPriceAlertLogPath},data-suggest-url=${suggestUrl}"
                    th:value="${searchQuery}"
                    placeholder="예: 서진시스템, 178320"
                    class="rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white w-56 sm:w-80"/>
@@ -289,7 +288,8 @@
         input.addEventListener('blur', function () { setTimeout(close, 120); });
 
         if (input.getAttribute('data-auto-query-nav') === 'true') {
-            var basePath = input.getAttribute('data-base-path') || '/chartboy/log';
+            var basePath = input.getAttribute('data-base-path');
+            if (!basePath) return;
             var sizeField = input.form ? input.form.querySelector('input[name="size"]') : null;
             var navTimer = null;
             function comparablePathSearch(pathname, searchParams) {

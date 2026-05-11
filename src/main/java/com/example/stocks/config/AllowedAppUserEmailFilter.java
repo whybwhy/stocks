@@ -19,9 +19,11 @@ import java.util.Map;
 public class AllowedAppUserEmailFilter extends OncePerRequestFilter {
 
     private final AppProperties appProperties;
+    private final ChartboyPublicAccess chartboyPublicAccess;
 
-    public AllowedAppUserEmailFilter(AppProperties appProperties) {
+    public AllowedAppUserEmailFilter(AppProperties appProperties, ChartboyPublicAccess chartboyPublicAccess) {
         this.appProperties = appProperties;
+        this.chartboyPublicAccess = chartboyPublicAccess;
     }
 
     @Override
@@ -47,11 +49,11 @@ public class AllowedAppUserEmailFilter extends OncePerRequestFilter {
         response.sendRedirect(request.getContextPath() + "/?error=forbidden");
     }
 
-    private static boolean isExemptPath(HttpServletRequest request) {
-        String path = ChartboyPublicAccess.normalizedDispatchPath(request);
-        if (ChartboyPublicAccess.isPriceAlertPublicPath(request)) {
+    private boolean isExemptPath(HttpServletRequest request) {
+        if (chartboyPublicAccess.isPriceAlertPublicPath(request)) {
             return true;
         }
+        String path = ChartboyPublicAccess.normalizedDispatchPath(request);
         if ("/".equals(path) || "/index".equals(path) || "/health".equals(path) || "/favicon.png".equals(path)) {
             return true;
         }

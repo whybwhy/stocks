@@ -13,10 +13,13 @@ public class SecurityConfig {
 
     private final SupabaseService supabaseService;
     private final AppProperties appProperties;
+    private final ChartboyPublicAccess chartboyPublicAccess;
 
-    public SecurityConfig(SupabaseService supabaseService, AppProperties appProperties) {
+    public SecurityConfig(SupabaseService supabaseService, AppProperties appProperties,
+                          ChartboyPublicAccess chartboyPublicAccess) {
         this.supabaseService = supabaseService;
         this.appProperties = appProperties;
+        this.chartboyPublicAccess = chartboyPublicAccess;
     }
 
     @Bean
@@ -32,7 +35,7 @@ public class SecurityConfig {
                         .requestMatchers("/", "/index", "/health", "/favicon.png").permitAll()
                         .requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").permitAll()
                         // 차트보이 공개 목록·돌파 로그: 문자열 패턴이 서블릿 경로와 어긋나면 OAuth로 튕기므로 RequestMatcher로 명시
-                        .requestMatchers(ChartboyPublicAccess::isPriceAlertPublicPath).permitAll()
+                        .requestMatchers(chartboyPublicAccess::isPriceAlertPublicPath).permitAll()
                         .requestMatchers("/admin", "/admin/**").authenticated()
                         .requestMatchers("/api/alerts", "/api/alerts/**").permitAll()
                         .anyRequest().authenticated()
@@ -49,7 +52,7 @@ public class SecurityConfig {
                         .deleteCookies("JSESSIONID")
                 )
                 .addFilterBefore(new KakaoAuthLoggingFilter(), AuthorizationFilter.class)
-                .addFilterBefore(new AllowedAppUserEmailFilter(appProperties), AuthorizationFilter.class)
+                .addFilterBefore(new AllowedAppUserEmailFilter(appProperties, chartboyPublicAccess), AuthorizationFilter.class)
                 .addFilterBefore(new ServicePermissionFilter(supabaseService), AuthorizationFilter.class);
 
         return http.build();

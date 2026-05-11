@@ -14,7 +14,7 @@
             <h1 class="text-xl sm:text-2xl font-bold text-slate-800"></h1>
         </div>
         <div th:if="${readOnly}" class="flex flex-wrap items-center gap-2 shrink-0">
-            <a href="/chartboy/log"
+            <a th:href="${publicPriceAlertLogPath}"
                class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm hover:bg-slate-50">돌파 로그</a>
         </div>
     </div>
@@ -342,7 +342,8 @@
         input.addEventListener('blur', function () { setTimeout(close, 120); });
 
         if (input.getAttribute('data-auto-query-nav') === 'true') {
-            var basePath = input.getAttribute('data-base-path') || '/chartboy/log';
+            var basePath = input.getAttribute('data-base-path');
+            if (!basePath) return;
             var sizeField = input.form ? input.form.querySelector('input[name="size"]') : null;
             var navTimer = null;
             function comparablePathSearch(pathname, searchParams) {
