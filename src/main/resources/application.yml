@@ -46,9 +46,11 @@ spring:
             user-name-attribute: id
 
 # /stock/chartboy 접근 허용 카카오 계정(닉네임). 비어 있으면 모든 인증 사용자 허용. 아래에 추가하면 해당 닉네임만 접근 가능.
-# 이메일 화이트리스트: 비어 있으면 비활성. 설정 시 /chartboy/list 외 카카오 로그인 경로는 목록의 이메일만 허용.
+# 이메일 화이트리스트: 비어 있으면 비활성. 공개 목표가 URL(/{slug}/list·log) 외 카카오 로그인 경로는 목록의 이메일만 허용.
 # Render 등: APP_ALLOWED_USER_EMAILS= (여러 명은 콤마로 구분)
+# 공개 목표가·돌파 로그 URL 접두사. 배포마다 변경 시 /{slug}/list, /{slug}/log (예: x7k9m2/list). 환경변수 APP_PRICE_ALERT_PUBLIC_SLUG
 app:
+  price-alert-public-slug: ${APP_PRICE_ALERT_PUBLIC_SLUG:cxsmsqu9gk}
   allowed-kakao-accounts: ["30_윤보람", "김효진", "bk", "Yun 보라", "한승우"]
   # allowed-kakao-accounts: [ "닉네임1", "닉네임2" ]
   allowed-user-emails: "${APP_ALLOWED_USER_EMAILS:}"
