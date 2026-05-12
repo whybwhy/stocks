@@ -51,6 +51,12 @@ spring:
 # 공개 목표가·돌파 로그 URL 접두사. 배포마다 변경 시 /{slug}/list, /{slug}/log (예: x7k9m2/list). 환경변수 APP_PRICE_ALERT_PUBLIC_SLUG
 app:
   price-alert-public-slug: ${APP_PRICE_ALERT_PUBLIC_SLUG:ec39yktk33}
+  # true: 허용 시각 창만 접근 가능 · false: 24시간 항상 접근. ENV: APP_PRICE_ALERT_PUBLIC_TIME_RESTRICTED=false
+  price-alert-public-time-restricted: ${APP_PRICE_ALERT_PUBLIC_TIME_RESTRICTED:true}
+  # 공개 목록·로그 접근 허용 시각 (위가 true 일 때만). 기본 한국 시간 06:00 이상 · 10:00 미만. /stocker 는 제외.
+  price-alert-public-window-zone: ${APP_PRICE_ALERT_PUBLIC_WINDOW_ZONE:Asia/Seoul}
+  price-alert-public-window-start-hour: ${APP_PRICE_ALERT_PUBLIC_WINDOW_START_HOUR:6}
+  price-alert-public-window-end-hour: ${APP_PRICE_ALERT_PUBLIC_WINDOW_END_HOUR:10}
   allowed-kakao-accounts: ["30_윤보람", "김효진", "bk", "Yun 보라", "한승우"]
   # allowed-kakao-accounts: [ "닉네임1", "닉네임2" ]
   allowed-user-emails: "${APP_ALLOWED_USER_EMAILS:}"

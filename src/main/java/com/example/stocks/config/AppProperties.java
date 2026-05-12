@@ -73,6 +73,91 @@ public class AppProperties {
         return "/" + normalizedPriceAlertPublicSlug() + "/log";
     }
 
+    /**
+     * {@code true}면 공개 목록·돌파 로그 URL을 {@link #priceAlertPublicWindowStartHour}~{@link #priceAlertPublicWindowEndHour}(미만) 에만 허용.
+     * {@code false}면 24시간 항상 접근 가능 (/stocker 는 원래 무제한).
+     */
+    private boolean priceAlertPublicTimeRestricted = true;
+
+    /**
+     * 타임존 (공개 목록·돌파 로그 접근 시간대). 기본 {@code Asia/Seoul}.
+     */
+    private String priceAlertPublicWindowZone = "Asia/Seoul";
+
+    /**
+     * 공개 접근 허용 시작 시(포함). 0~23, 기본 6 (오전 6시).
+     */
+    private int priceAlertPublicWindowStartHour = 6;
+
+    /**
+     * 공개 접근 종료 시(미포함). 0~24, 기본 10 → 10시 정각부터 차단 (= 06:00~09:59:59 허용).
+     */
+    private int priceAlertPublicWindowEndHour = 10;
+
+    public String getPriceAlertPublicWindowZone() {
+        return priceAlertPublicWindowZone != null ? priceAlertPublicWindowZone : "Asia/Seoul";
+    }
+
+    public void setPriceAlertPublicWindowZone(String priceAlertPublicWindowZone) {
+        this.priceAlertPublicWindowZone = priceAlertPublicWindowZone;
+    }
+
+    public int getPriceAlertPublicWindowStartHour() {
+        return clampHour(priceAlertPublicWindowStartHour, 6);
+    }
+
+    public void setPriceAlertPublicWindowStartHour(int priceAlertPublicWindowStartHour) {
+        this.priceAlertPublicWindowStartHour = priceAlertPublicWindowStartHour;
+    }
+
+    public int getPriceAlertPublicWindowEndHour() {
+        int end = clampHour(priceAlertPublicWindowEndHour, 10);
+        int start = getPriceAlertPublicWindowStartHour();
+        if (end <= start && start < 23) {
+            end = Math.min(23, start + 4);
+        }
+        if (end <= start) {
+            return 23;
+        }
+        return end;
+    }
+
+    public void setPriceAlertPublicWindowEndHour(int priceAlertPublicWindowEndHour) {
+        this.priceAlertPublicWindowEndHour = priceAlertPublicWindowEndHour;
+    }
+
+    public boolean isPriceAlertPublicTimeRestricted() {
+        return priceAlertPublicTimeRestricted;
+    }
+
+    public void setPriceAlertPublicTimeRestricted(boolean priceAlertPublicTimeRestricted) {
+        this.priceAlertPublicTimeRestricted = priceAlertPublicTimeRestricted;
+    }
+
+    private static int clampHour(int h, int d) {
+        if (h < 0 || h > 23) {
+            return d;
+        }
+        return h;
+    }
+
+    /** 현재 시각이 {@link #priceAlertPublicWindowStartHour} 이상 · {@link #priceAlertPublicWindowEndHour} 미만 인지 (설정 타임존 기준 시계). */
+    public boolean isWithinPriceAlertPublicTimeWindow(java.time.ZonedDateTime now) {
+        java.time.LocalTime t = now.toLocalTime();
+        java.time.LocalTime start = java.time.LocalTime.of(getPriceAlertPublicWindowStartHour(), 0);
+        java.time.LocalTime end = java.time.LocalTime.of(getPriceAlertPublicWindowEndHour(), 0);
+        return !t.isBefore(start) && t.isBefore(end);
+    }
+
+    /** 공개 시간대 검사용 {@link java.time.ZonedDateTime}. */
+    public java.time.ZonedDateTime nowInPriceAlertPublicWindowZone() {
+        try {
+            return java.time.ZonedDateTime.now(java.time.ZoneId.of(getPriceAlertPublicWindowZone()));
+        } catch (java.time.DateTimeException e) {
+            return java.time.ZonedDateTime.now(java.time.ZoneId.of("Asia/Seoul"));
+        }
+    }
+
     public String getAllowedUserEmails() {
         return allowedUserEmails;
     }

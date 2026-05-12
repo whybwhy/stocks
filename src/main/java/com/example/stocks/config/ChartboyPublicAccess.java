@@ -30,6 +30,22 @@ public class ChartboyPublicAccess {
         return "/chartbody/log".equals(path);
     }
 
+    /**
+     * 시간대 제한 대상 ({@code /{slug}/list|log} 및 하위, {@code /chartbody/log}).
+     * {@code /stocker} 등 다른 공개 경로는 제외.
+     */
+    public boolean isPriceAlertSlugScopedPath(HttpServletRequest request) {
+        String path = normalizedDispatchPath(request);
+        String slug = appProperties.normalizedPriceAlertPublicSlug();
+        if ("/chartbody/log".equals(path)) {
+            return true;
+        }
+        if (pathEqualsOrChild(path, "/" + slug + "/list")) {
+            return true;
+        }
+        return pathEqualsOrChild(path, "/" + slug + "/log");
+    }
+
     private static boolean pathEqualsOrChild(String path, String base) {
         return base.equals(path) || path.startsWith(base + "/");
     }

@@ -14,12 +14,15 @@ public class SecurityConfig {
     private final SupabaseService supabaseService;
     private final AppProperties appProperties;
     private final ChartboyPublicAccess chartboyPublicAccess;
+    private final PublicPriceAlertTimeWindowFilter publicPriceAlertTimeWindowFilter;
 
     public SecurityConfig(SupabaseService supabaseService, AppProperties appProperties,
-                          ChartboyPublicAccess chartboyPublicAccess) {
+                          ChartboyPublicAccess chartboyPublicAccess,
+                          PublicPriceAlertTimeWindowFilter publicPriceAlertTimeWindowFilter) {
         this.supabaseService = supabaseService;
         this.appProperties = appProperties;
         this.chartboyPublicAccess = chartboyPublicAccess;
+        this.publicPriceAlertTimeWindowFilter = publicPriceAlertTimeWindowFilter;
     }
 
     @Bean
@@ -52,6 +55,7 @@ public class SecurityConfig {
                         .deleteCookies("JSESSIONID")
                 )
                 .addFilterBefore(new KakaoAuthLoggingFilter(), AuthorizationFilter.class)
+                .addFilterBefore(publicPriceAlertTimeWindowFilter, AllowedAppUserEmailFilter.class)
                 .addFilterBefore(new AllowedAppUserEmailFilter(appProperties, chartboyPublicAccess), AuthorizationFilter.class)
                 .addFilterBefore(new ServicePermissionFilter(supabaseService), AuthorizationFilter.class);
 
