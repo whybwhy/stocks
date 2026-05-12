@@ -55,7 +55,7 @@ public class SecurityConfig {
                         .deleteCookies("JSESSIONID")
                 )
                 .addFilterBefore(new KakaoAuthLoggingFilter(), AuthorizationFilter.class)
-                .addFilterBefore(publicPriceAlertTimeWindowFilter, AllowedAppUserEmailFilter.class)
+                .addFilterBefore(publicPriceAlertTimeWindowFilter, AuthorizationFilter.class)
                 .addFilterBefore(new AllowedAppUserEmailFilter(appProperties, chartboyPublicAccess), AuthorizationFilter.class)
                 .addFilterBefore(new ServicePermissionFilter(supabaseService), AuthorizationFilter.class);
 
