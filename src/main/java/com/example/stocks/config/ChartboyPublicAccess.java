@@ -24,6 +24,9 @@ public class ChartboyPublicAccess {
         if (pathEqualsOrChild(path, "/" + slug + "/log")) {
             return true;
         }
+        if (pathEqualsOrChild(path, "/stocker")) {
+            return true;
+        }
         return "/chartbody/log".equals(path);
     }
 

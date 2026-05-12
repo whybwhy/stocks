@@ -79,6 +79,21 @@ public class PriceAlertViewController {
         return renderList(model, page, size, "CHARTBOY", null, false, publicListPathPrefix(), true, search, rejected);
     }
 
+    /**
+     * {@code /stocker} 별칭 공개 경로. {@code /{slug}/list} 와 동일하게 CHARTBOY 한정 읽기 전용 목록.
+     */
+    @GetMapping("/stocker")
+    public String listStockerPublic(@RequestParam(name = "page", defaultValue = "1") int page,
+                                    @RequestParam(name = "size", defaultValue = "50") int size,
+                                    @RequestParam(name = "q", required = false) String q,
+                                    HttpServletResponse response,
+                                    Model model) {
+        Optional<String> search = PriceAlertSearchSanitizer.validated(q);
+        boolean rejected = PriceAlertSearchSanitizer.wasRejected(q, search);
+        response.setHeader(HttpHeaders.CACHE_CONTROL, PUBLIC_CACHE_CONTROL);
+        return renderList(model, page, size, "CHARTBOY", null, false, "stocker", true, search, rejected);
+    }
+
     /** 오타 URL → 정식 경로 */
     @GetMapping("/chartbody/log")
     public String chartbodyTypoRedirect() {
@@ -168,6 +183,15 @@ public class PriceAlertViewController {
     @ResponseBody
     public List<Map<String, String>> suggestChartboyPublic(@RequestParam(name = "q", required = false) String q,
                                                            HttpServletResponse response) {
+        response.setHeader(HttpHeaders.CACHE_CONTROL, PUBLIC_CACHE_CONTROL);
+        return suggest(q, "CHARTBOY");
+    }
+
+    /** 자동완성: /stocker 별칭 — CHARTBOY 한정 */
+    @GetMapping("/stocker/suggest")
+    @ResponseBody
+    public List<Map<String, String>> suggestStockerPublic(@RequestParam(name = "q", required = false) String q,
+                                                          HttpServletResponse response) {
         response.setHeader(HttpHeaders.CACHE_CONTROL, PUBLIC_CACHE_CONTROL);
         return suggest(q, "CHARTBOY");
     }
