@@ -123,7 +123,7 @@ public class PriceAlertTriggerDto {
     }
 
     /**
-     * 화면용: {@code triggered_at} 을 한국 표준시(Asia/Seoul, UTC+9)로 맞춘 뒤 {@code yy.MM.dd} 형식.
+     * 화면용: {@code triggered_at} 을 한국 표준시(Asia/Seoul, UTC+9)로 맞춘 뒤 {@code yy.MM.dd HH:mm} 형식.
      * Supabase JSON(ISO-8601, Z/오프셋/naive)을 최대한 수용합니다.
      */
     @JsonIgnore
@@ -134,7 +134,7 @@ public class PriceAlertTriggerDto {
         String raw = triggeredAt.trim();
         try {
             ZonedDateTime kst = toSeoul(raw);
-            return kst.format(DateTimeFormatter.ofPattern("yy.MM.dd"));
+            return kst.format(DateTimeFormatter.ofPattern("yy.MM.dd HH:mm"));
         } catch (DateTimeException e) {
             return raw;
         }

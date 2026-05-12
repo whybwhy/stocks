@@ -62,7 +62,7 @@
         <table class="w-max min-w-full divide-y divide-slate-200 text-xs sm:text-sm">
             <thead class="bg-slate-50">
             <tr>
-                <th class="px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">돌파 시각 <span class="font-normal normal-case text-slate-400">yy.MM.dd (KST)</span></th>
+                <th class="px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">돌파 시각 <span class="font-normal normal-case text-slate-400">yy.MM.dd HH:mm (KST)</span></th>
                 <th class="px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">종목명</th>
                 <th class="hidden sm:table-cell px-3 sm:px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wider">코드</th>
                 <th class="px-3 sm:px-4 py-3 text-right font-semibold text-slate-500 uppercase tracking-wider">목표가</th>
@@ -93,7 +93,11 @@
                 <td class="hidden md:table-cell px-3 sm:px-4 py-2.5 text-slate-500 font-mono text-xs" th:text="${t.alertId}">-</td>
             </tr>
             <tr th:if="${#lists.isEmpty(triggers)}">
-                <td colspan="8" class="px-4 py-8 text-center text-slate-500">돌파 로그가 없거나 Supabase에 <code class="bg-slate-100 px-1 rounded">price_alert_triggers</code> 테이블을 아직 만들지 않았을 수 있습니다.</td>
+                <td colspan="8" class="px-4 py-8 text-center text-slate-500">
+                    <span th:if="${#strings.hasText(searchQuery)}"
+                          class="text-slate-700 font-medium" th:text="|「${searchQuery}」 |">「」 </span>
+                    데이터가 없습니다.
+                </td>
             </tr>
             </tbody>
         </table>
