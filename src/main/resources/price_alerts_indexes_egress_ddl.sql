@@ -10,13 +10,13 @@
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- ─── price_alerts ────────────────────────────────────────────────
--- 공개 목록 /{slug}/list 핫쿼리:
+-- 공개 목록 /private/{slug}/list 핫쿼리:
 --   select ... from price_alerts where source = 'CHARTBOY' order by id desc limit 50
 -- 단일 (source) + 단일 (id PK) 만 있으면 정렬 시 정렬 비용 발생. 복합으로 정렬까지 인덱스 처리.
 CREATE INDEX IF NOT EXISTS idx_price_alerts_source_id_desc
     ON public.price_alerts (source, id DESC);
 
--- 자동완성 /{slug}/list/suggest:
+-- 자동완성 /private/{slug}/list/suggest:
 --   symbol ilike '%foo%' or stock_code ilike '%foo%'
 CREATE INDEX IF NOT EXISTS idx_price_alerts_symbol_trgm
     ON public.price_alerts USING gin (symbol gin_trgm_ops);

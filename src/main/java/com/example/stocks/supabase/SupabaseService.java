@@ -6,6 +6,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.util.UriBuilder;
 
 import com.example.stocks.alert.PriceAlertDto;
 import com.example.stocks.alert.PriceAlertTriggerDto;
@@ -14,6 +15,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -72,6 +79,7 @@ public class SupabaseService {
 
     private static final String PRICE_ALERTS_TABLE = "price_alerts";
     private static final String PRICE_ALERT_TRIGGERS_TABLE = "price_alert_triggers";
+    private static final ZoneId SEOUL_ZONE = ZoneId.of("Asia/Seoul");
 
     private static final String PRICE_ALERT_SELECT_COLUMNS =
             "id,market,stock_code,symbol,target_price,condition,label,source,is_active,triggered_at,created_at";
@@ -86,6 +94,15 @@ public class SupabaseService {
      */
     public PriceAlertPageResult getPriceAlerts(int limit, int offset, String source,
                                                Optional<String> exactSymbolOrCode) {
+        return getPriceAlerts(limit, offset, source, exactSymbolOrCode, Optional.empty());
+    }
+
+    /**
+     * {@code createdOnSeoulDate} 가 있으면 해당 일자(서울 자정~익일 자정)에 생성된 행만 조회합니다. 검색어({@code exactSymbolOrCode})와 함께 사용할 수 있습니다.
+     */
+    public PriceAlertPageResult getPriceAlerts(int limit, int offset, String source,
+                                               Optional<String> exactSymbolOrCode,
+                                               Optional<LocalDate> createdOnSeoulDate) {
         ResponseEntity<List<PriceAlertDto>> response = supabaseRestClient.get()
                 .uri(uriBuilder -> {
                     uriBuilder
@@ -100,6 +117,7 @@ public class SupabaseService {
                     }
                     exactSymbolOrCode.ifPresent(v ->
                             uriBuilder.queryParam("or", postgrestSymbolOrStockCodeOr(v)));
+                    createdOnSeoulDate.ifPresent(d -> appendCreatedBetweenSeoulDay(uriBuilder, d));
                     return uriBuilder.build();
                 })
                 .header("Prefer", "count=estimated")
@@ -109,6 +127,60 @@ public class SupabaseService {
         List<PriceAlertDto> list = response.getBody() != null ? response.getBody() : List.of();
         long total = parseTotalFromContentRange(response.getHeaders().getFirst("Content-Range"));
         return new PriceAlertPageResult(list, total);
+    }
+
+    private static void appendTimestampBetweenSeoulDay(UriBuilder uriBuilder, String column, LocalDate seoulDay) {
+        Instant start = seoulDay.atStartOfDay(SEOUL_ZONE).toInstant();
+        Instant end = seoulDay.plusDays(1).atStartOfDay(SEOUL_ZONE).toInstant();
+        uriBuilder.queryParam(column, "gte." + DateTimeFormatter.ISO_INSTANT.format(start));
+        uriBuilder.queryParam(column, "lt." + DateTimeFormatter.ISO_INSTANT.format(end));
+    }
+
+    private static void appendCreatedBetweenSeoulDay(UriBuilder uriBuilder, LocalDate seoulDay) {
+        appendTimestampBetweenSeoulDay(uriBuilder, "created_at", seoulDay);
+    }
+
+    /** source에 해당하는 행 중 최신 {@code created_at} 의 서울 달력 날짜 (없으면 empty). */
+    public Optional<LocalDate> getLatestCreatedLocalDateSeoul(String source) {
+        String s = source != null ? source.trim() : "";
+        if (s.isEmpty() || "ALL".equalsIgnoreCase(s)) {
+            return Optional.empty();
+        }
+        ResponseEntity<List<PriceAlertDto>> response = supabaseRestClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/rest/v1/" + PRICE_ALERTS_TABLE)
+                        .queryParam("select", "created_at")
+                        .queryParam("source", "eq." + s)
+                        .queryParam("order", "created_at.desc")
+                        .queryParam("limit", "1")
+                        .build())
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .toEntity(new ParameterizedTypeReference<List<PriceAlertDto>>() {});
+        List<PriceAlertDto> body = response.getBody();
+        if (body == null || body.isEmpty() || body.getFirst().getCreatedAt() == null) {
+            return Optional.empty();
+        }
+        LocalDate ld = parseCreatedAtToSeoulDate(body.getFirst().getCreatedAt());
+        return Optional.ofNullable(ld);
+    }
+
+    private static LocalDate parseCreatedAtToSeoulDate(String createdAtIso) {
+        if (createdAtIso == null || createdAtIso.isBlank()) {
+            return null;
+        }
+        String t = createdAtIso.trim();
+        Instant instant;
+        try {
+            instant = Instant.parse(t);
+        } catch (DateTimeParseException ignored) {
+            try {
+                instant = OffsetDateTime.parse(t).toInstant();
+            } catch (DateTimeParseException e2) {
+                return null;
+            }
+        }
+        return LocalDate.ofInstant(instant, SEOUL_ZONE);
     }
 
     /**
@@ -205,10 +277,12 @@ public class SupabaseService {
 
     /**
      * 돌파 로그 목록. {@code source} 가 비어 있지 않으면 해당 출처로 필터.
-     * {@code q} 가 있으면 종목명·코드 부분 일치({@code ilike}).
+     * {@code q} 가 있으면 종목명·코드 <strong>전체 일치</strong>(PostgREST {@code or} with {@code eq}) — {@link #getPriceAlerts} 와 동일 규칙.
+     * {@code triggeredOnSeoulDay} 가 있으면 {@code triggered_at} 을 해당 서울 달력일 00:00~24:00 에 한정합니다.
      */
     public PriceAlertTriggerPageResult getPriceAlertTriggers(int limit, int offset, String source,
-                                                             Optional<String> q) {
+                                                             Optional<String> q,
+                                                             Optional<LocalDate> triggeredOnSeoulDay) {
         ResponseEntity<List<PriceAlertTriggerDto>> response = supabaseRestClient.get()
                 .uri(uriBuilder -> {
                     uriBuilder
@@ -221,10 +295,8 @@ public class SupabaseService {
                     if (!s.isEmpty() && !"ALL".equalsIgnoreCase(s)) {
                         uriBuilder.queryParam("source", "eq." + s);
                     }
-                    q.ifPresent(v -> {
-                        String pat = postgrestDoubleQuoted("%" + v + "%");
-                        uriBuilder.queryParam("or", "(symbol.ilike." + pat + ",stock_code.ilike." + pat + ")");
-                    });
+                    triggeredOnSeoulDay.ifPresent(d -> appendTimestampBetweenSeoulDay(uriBuilder, "triggered_at", d));
+                    q.ifPresent(v -> uriBuilder.queryParam("or", postgrestSymbolOrStockCodeOr(v)));
                     return uriBuilder.build();
                 })
                 .header("Prefer", "count=estimated")

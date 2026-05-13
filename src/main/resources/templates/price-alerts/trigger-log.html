@@ -9,14 +9,19 @@
 </head>
 <body class="bg-slate-100 min-h-screen">
 <div class="w-full max-w-[100rem] mx-auto p-4 sm:p-6">
-    <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
-        <div>
-            <h1 class="text-xl sm:text-2xl font-bold text-slate-800">로그</h1>
+    <div class="mb-4 flex items-center gap-2 sm:gap-3 w-full min-w-0">
+        <div class="flex-1 min-w-0 rounded-lg border border-rose-200 bg-rose-50 px-3 sm:px-4 py-2.5 text-sm text-rose-950 inline-flex flex-row flex-wrap items-center gap-x-3 gap-y-1">
+            <span class="min-w-0">차트보이 하트 ❤️ 클릭하셨나요?</span>
+            <a href="https://fanding.kr/@chartboy1001/posts"
+               target="_blank" rel="noopener noreferrer"
+               class="text-rose-900 underline hover:text-rose-950 whitespace-nowrap font-medium shrink-0">팬딩 포스트 가기</a>
         </div>
-        <div class="flex flex-wrap items-center gap-2 shrink-0">
-            <a th:href="${publicPriceAlertListPath}"
-               class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm hover:bg-slate-50">메인 목록</a>
-        </div>
+        <a th:href="${triggerLogMainListHref}"
+           class="shrink-0 px-3 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm hover:bg-slate-50 whitespace-nowrap">메인 목록</a>
+    </div>
+
+    <div class="mb-4">
+        <h1 class="text-xl sm:text-2xl font-bold text-slate-800">로그</h1>
     </div>
 
     <p th:if="${searchRejected}"
@@ -26,24 +31,40 @@
 
     <form method="get" th:action="|/${listPathPrefix}|" class="mb-4 flex flex-wrap items-end gap-2">
         <input type="hidden" name="size" th:value="${pageSize}"/>
+        <input type="hidden" name="from" th:value="${triggerLogFromParam}"/>
+        <input type="hidden" name="triggered" value="all" th:if="${triggerLogAllDates}"/>
         <div class="relative">
-            <label for="q-log" class="block text-xs font-medium text-slate-600 mb-1">종목명·종목코드 (부분 일치)</label>
+            <label for="q-log" class="block text-xs font-medium text-slate-600 mb-1">종목명·종목코드 전체 일치</label>
             <input id="q-log" name="q" type="search" maxlength="64" autocomplete="off"
                    role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="q-log-suggest"
                    data-suggest-input
-                   data-auto-query-nav="true"
-                   th:attr="data-base-path=${publicPriceAlertLogPath},data-suggest-url=${suggestUrl}"
+                   th:attr="data-suggest-url=${suggestUrl}"
                    th:value="${searchQuery}"
                    placeholder="예: 서진시스템, 178320"
                    class="rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white w-56 sm:w-80"/>
             <ul id="q-log-suggest" role="listbox" hidden
                 class="absolute z-20 top-full mt-1 left-0 w-56 sm:w-80 max-h-64 overflow-y-auto rounded-lg border border-slate-300 bg-white shadow-lg text-sm"></ul>
         </div>
+        <div th:if="${!triggerLogAllDates}">
+            <label for="triggered-log" class="block text-xs font-medium text-slate-600 mb-1">돌파일 <span class="text-slate-400 font-normal">(서울)</span></label>
+            <input id="triggered-log" name="triggered" type="date" lang="ko"
+                   th:value="${triggerLogDayField}"
+                   th:attr="max=${today}"
+                   class="rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white w-auto min-w-[11rem]"/>
+        </div>
         <button type="submit" class="px-4 py-2 rounded-lg bg-slate-700 text-white text-sm hover:bg-slate-600">검색</button>
         <a th:if="${!#strings.isEmpty(searchQuery)}"
-           th:href="|/${listPathPrefix}?size=${pageSize}|"
+           th:href="|/${listPathPrefix}?size=${pageSize}${triggerLogStickyQueryExtra}|"
            role="button"
            class="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50">전체</a>
+        <a th:if="${!triggerLogAllDates}"
+           th:href="|/${listPathPrefix}?size=${pageSize}${triggerLogAllPeriodExtra}|"
+           role="button"
+           class="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50">전체 기간</a>
+        <a th:if="${triggerLogAllDates}"
+           th:href="|/${listPathPrefix}?size=${pageSize}${triggerLogResetToTodayExtra}|"
+           role="button"
+           class="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50">오늘만</a>
     </form>
 
     <div class="mb-3 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
@@ -94,8 +115,10 @@
             </tr>
             <tr th:if="${#lists.isEmpty(triggers)}">
                 <td colspan="8" class="px-4 py-8 text-center text-slate-500">
-                    <span th:if="${#strings.hasText(searchQuery)}"
+                    <span th:if="${!#strings.isEmpty(searchQuery)}"
                           class="text-slate-700 font-medium" th:text="|「${searchQuery}」 |">「」 </span>
+                    <span th:if="${!triggerLogAllDates and !#strings.isEmpty(triggerLogDayField) and #strings.isEmpty(searchQuery)}"
+                          class="text-slate-700 font-medium" th:text="|돌파일 ${triggerLogDayField} · |">돌파일 · </span>
                     데이터가 없습니다.
                 </td>
             </tr>
@@ -291,39 +314,6 @@
 
         input.addEventListener('blur', function () { setTimeout(close, 120); });
 
-        if (input.getAttribute('data-auto-query-nav') === 'true') {
-            var basePath = input.getAttribute('data-base-path');
-            if (!basePath) return;
-            var sizeField = input.form ? input.form.querySelector('input[name="size"]') : null;
-            var navTimer = null;
-            function comparablePathSearch(pathname, searchParams) {
-                var sp = new URLSearchParams(searchParams);
-                sp.delete('page');
-                var q = sp.toString();
-                return pathname + (q ? '?' + q : '');
-            }
-            function currentComparableUrl() {
-                var u = new URL(window.location.href);
-                return comparablePathSearch(u.pathname, u.searchParams);
-            }
-            input.addEventListener('input', function () {
-                if (navTimer) clearTimeout(navTimer);
-                navTimer = setTimeout(function () {
-                    var v = input.value.trim();
-                    var p = new URLSearchParams();
-                    var sz = sizeField && sizeField.value ? sizeField.value : '50';
-                    p.set('size', sz);
-                    if (v.length > 0) {
-                        p.set('q', v);
-                    }
-                    var nextStr = comparablePathSearch(basePath, p);
-                    if (nextStr === currentComparableUrl()) {
-                        return;
-                    }
-                    window.location.replace(nextStr);
-                }, 420);
-            });
-        }
     });
 })();
 </script>

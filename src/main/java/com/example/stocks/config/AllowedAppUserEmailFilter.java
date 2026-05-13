@@ -14,7 +14,7 @@ import java.util.Map;
 
 /**
  * {@code app.allowed-user-emails} 가 비어 있지 않을 때, 카카오 OAuth2 로그인 사용자의 이메일이
- * 목록에 없으면 접근을 거부합니다. {@code /chartboy/list}·{@code /chartboy/log}·로그인·로그아웃·헬스 등은 제외합니다.
+ * 목록에 없으면 접근을 거부합니다. {@code /private/{slug}/list}·{@code /{slug}}·{@code /{slug}/list}·{@code /{slug}/log}·로그인·로그아웃·헬스 등은 제외합니다.
  */
 public class AllowedAppUserEmailFilter extends OncePerRequestFilter {
 

@@ -4,7 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Component;
 
 /**
- * 공개 price_alerts URL ({@code /{app.price-alert-public-slug}/list|log}) 판별.
+ * 공개 price_alerts URL ({@code /private/{slug}/list|…}, {@code /{slug}|…}, {@code /{slug}/list|…}, {@code /{slug}/log}) 판별.
  */
 @Component
 public class ChartboyPublicAccess {
@@ -18,6 +18,12 @@ public class ChartboyPublicAccess {
     public boolean isPriceAlertPublicPath(HttpServletRequest request) {
         String path = normalizedDispatchPath(request);
         String slug = appProperties.normalizedPriceAlertPublicSlug();
+        if (pathEqualsOrChild(path, "/private/" + slug + "/list")) {
+            return true;
+        }
+        if (slugRootListingOrSuggest(path, slug)) {
+            return true;
+        }
         if (pathEqualsOrChild(path, "/" + slug + "/list")) {
             return true;
         }
@@ -31,7 +37,7 @@ public class ChartboyPublicAccess {
     }
 
     /**
-     * 시간대 제한 대상 ({@code /{slug}/list|log} 및 하위, {@code /chartbody/log}).
+     * 시간대 제한 대상 ({@code /private/{slug}/list|…}, {@code /{slug}|…}, {@code /{slug}/list|…}, {@code /{slug}/log|…}, {@code /chartbody/log}).
      * {@code /stocker} 등 다른 공개 경로는 제외.
      */
     public boolean isPriceAlertSlugScopedPath(HttpServletRequest request) {
@@ -40,10 +46,21 @@ public class ChartboyPublicAccess {
         if ("/chartbody/log".equals(path)) {
             return true;
         }
+        if (pathEqualsOrChild(path, "/private/" + slug + "/list")) {
+            return true;
+        }
+        if (slugRootListingOrSuggest(path, slug)) {
+            return true;
+        }
         if (pathEqualsOrChild(path, "/" + slug + "/list")) {
             return true;
         }
         return pathEqualsOrChild(path, "/" + slug + "/log");
+    }
+
+    private static boolean slugRootListingOrSuggest(String path, String slug) {
+        String root = "/" + slug;
+        return root.equals(path) || (root + "/suggest").equals(path);
     }
 
     private static boolean pathEqualsOrChild(String path, String base) {

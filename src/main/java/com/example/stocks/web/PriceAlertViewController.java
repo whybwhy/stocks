@@ -6,6 +6,7 @@ import com.example.stocks.config.AppProperties;
 import com.example.stocks.supabase.PriceAlertPageResult;
 import com.example.stocks.supabase.PriceAlertTriggerPageResult;
 import com.example.stocks.supabase.SupabaseService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -20,17 +21,23 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
+import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 /**
  * Supabase {@code price_alerts} 테이블 조회·등록·수정·삭제 및
- * {@code price_alert_triggers} 돌파 로그 공개 화면({@code /{app.price-alert-public-slug}/log}).
+ * {@code price_alert_triggers} 돌파 로그 공개 화면 ({@code /{app.price-alert-public-slug}/log},
+ * {@code triggered} 미지정 시 서울 달력 “오늘” {@code triggered_at} 로 필터·{@code triggered=all} 시 일자 무시),
+ * 목록: {@code /private/{slug}/list} (전체), {@code /{slug}} (단축: 검색 조건 없으면 조회 안 함 — 제출 후 CHARTBOY 필터 목록),
+ * {@code /{slug}/list} (검색·등록일 미지정 시 최신 등록일 행만).
+ * 단축 경로 {@code /{slug}} 는 뷰 {@code price-alerts/slug} , 그 외 목록 공개·로그인·관리는 {@code price-alerts/list}.
  * 스키마: {@code src/main/resources/price_alerts.sql}, {@code price_alert_triggers_ddl.sql}
  */
 @Controller
@@ -39,6 +46,11 @@ public class PriceAlertViewController {
     private static final int DEFAULT_PAGE_SIZE = 50;
     /** 공개 페이지 응답 캐시 (초). 브라우저·중간 캐시 모두에서 30초 동안 재사용 → Supabase egress 절감. */
     private static final String PUBLIC_CACHE_CONTROL = "public, max-age=30";
+
+    /** 일반 목표가 목록 템플릿. */
+    private static final String VIEW_PRICE_ALERTS_LIST = "price-alerts/list";
+    /** {@code GET /{app.price-alert-public-slug}} 단축 URL — 템플릿 {@code price-alerts/slug.html}. */
+    private static final String VIEW_PRICE_ALERTS_SLUG_ROOT = "price-alerts/slug";
 
     private final SupabaseService supabaseService;
     private final AppProperties appProperties;
@@ -61,37 +73,88 @@ public class PriceAlertViewController {
         Optional<String> search = PriceAlertSearchSanitizer.validated(q);
         boolean rejected = PriceAlertSearchSanitizer.wasRejected(q, search);
         return renderList(model, page, size, source, resolveKakaoNickname(user), true, "price-alerts", false,
-                search, rejected);
+                search, rejected, false, false, Optional.empty(), Optional.empty(), VIEW_PRICE_ALERTS_LIST);
     }
 
     /**
      * 카카오 로그인 없이 목표가 알람 목록만 조회 (등록·수정·삭제 URL은 제공하지 않음).
+     * 공식 경로: {@code /private/{slug}/list}.
      */
-    @GetMapping("${app.price-alert-public-slug}/list")
+    @GetMapping("private/${app.price-alert-public-slug}/list")
     public String listChartboyPublic(@RequestParam(name = "page", defaultValue = "1") int page,
                                      @RequestParam(name = "size", defaultValue = "50") int size,
                                      @RequestParam(name = "q", required = false) String q,
+                                     @RequestParam(name = "registered", required = false) String registered,
                                      HttpServletResponse response,
                                      Model model) {
         Optional<String> search = PriceAlertSearchSanitizer.validated(q);
         boolean rejected = PriceAlertSearchSanitizer.wasRejected(q, search);
+        Optional<LocalDate> registeredDay = parseRegisteredDateParam(registered);
         response.setHeader(HttpHeaders.CACHE_CONTROL, PUBLIC_CACHE_CONTROL);
-        return renderList(model, page, size, "CHARTBOY", null, false, publicListPathPrefix(), true, search, rejected);
+        return renderList(model, page, size, "CHARTBOY", null, false, publicListPathPrefix(), true, search, rejected,
+                false, false, Optional.empty(), registeredDay, VIEW_PRICE_ALERTS_LIST);
     }
 
     /**
-     * {@code /stocker} 별칭 공개 경로. {@code /{slug}/list} 와 동일하게 CHARTBOY 한정 읽기 전용 목록.
+     * {@code /{slug}} 단축 루트 — 검색 조건(URL {@code q} 또는 {@code registered})이 없으면 목록 조회하지 않음(검색 제출 후 조회).
+     * 조건 지정 후에는 CHARTBOY 페이지(id 내림차순)와 동일한 필터 규칙입니다.
+     * <p>{@link #listChartboyPublicShort(int, int, String, String, HttpServletResponse, Model)} ({@code /{slug}/list}) 는
+     * 미지정 시 최신 등록일 행만 유지합니다.
+     */
+    @GetMapping("${app.price-alert-public-slug}")
+    public String listChartboyPublicSlugRoot(@RequestParam(name = "page", defaultValue = "1") int page,
+                                             @RequestParam(name = "size", defaultValue = "50") int size,
+                                             @RequestParam(name = "q", required = false) String q,
+                                             @RequestParam(name = "registered", required = false) String registered,
+                                             HttpServletResponse response,
+                                             Model model) {
+        Optional<String> search = PriceAlertSearchSanitizer.validated(q);
+        boolean rejected = PriceAlertSearchSanitizer.wasRejected(q, search);
+        Optional<LocalDate> registeredDay = parseRegisteredDateParam(registered);
+        response.setHeader(HttpHeaders.CACHE_CONTROL, PUBLIC_CACHE_CONTROL);
+        String prefix = appProperties.publicPriceAlertListSlugPathWithoutLeadingSlash();
+        return renderList(model, page, size, "CHARTBOY", null, false, prefix, true, search, rejected,
+                true, false, Optional.empty(), registeredDay, VIEW_PRICE_ALERTS_SLUG_ROOT);
+    }
+
+    /**
+     * {@code /{slug}/list} — 검색·등록일 미지정 시 최신 등록일(서울) 행만 조회합니다. {@code /{slug}} 단축 루트와 다릅니다.
+     */
+    @GetMapping("${app.price-alert-public-slug}/list")
+    public String listChartboyPublicShort(@RequestParam(name = "page", defaultValue = "1") int page,
+                                          @RequestParam(name = "size", defaultValue = "50") int size,
+                                          @RequestParam(name = "q", required = false) String q,
+                                          @RequestParam(name = "registered", required = false) String registered,
+                                          HttpServletResponse response,
+                                          Model model) {
+        Optional<String> search = PriceAlertSearchSanitizer.validated(q);
+        boolean rejected = PriceAlertSearchSanitizer.wasRejected(q, search);
+        Optional<LocalDate> registeredDay = parseRegisteredDateParam(registered);
+        response.setHeader(HttpHeaders.CACHE_CONTROL, PUBLIC_CACHE_CONTROL);
+        Optional<LocalDate> latest = search.isEmpty() && registeredDay.isEmpty()
+                ? supabaseService.getLatestCreatedLocalDateSeoul("CHARTBOY")
+                : Optional.empty();
+        String prefix = appProperties.normalizedPriceAlertPublicSlug() + "/list";
+        return renderList(model, page, size, "CHARTBOY", null, false, prefix, true, search, rejected,
+                false, true, latest, registeredDay, VIEW_PRICE_ALERTS_LIST);
+    }
+
+    /**
+     * {@code /stocker} 별칭 공개 경로. {@code /private/{slug}/list} 와 동일하게 CHARTBOY 한정 읽기 전용 목록.
      */
     @GetMapping("/stocker")
     public String listStockerPublic(@RequestParam(name = "page", defaultValue = "1") int page,
                                     @RequestParam(name = "size", defaultValue = "50") int size,
                                     @RequestParam(name = "q", required = false) String q,
+                                    @RequestParam(name = "registered", required = false) String registered,
                                     HttpServletResponse response,
                                     Model model) {
         Optional<String> search = PriceAlertSearchSanitizer.validated(q);
         boolean rejected = PriceAlertSearchSanitizer.wasRejected(q, search);
+        Optional<LocalDate> registeredDay = parseRegisteredDateParam(registered);
         response.setHeader(HttpHeaders.CACHE_CONTROL, PUBLIC_CACHE_CONTROL);
-        return renderList(model, page, size, "CHARTBOY", null, false, "stocker", true, search, rejected);
+        return renderList(model, page, size, "CHARTBOY", null, false, "stocker", true, search, rejected,
+                false, false, Optional.empty(), registeredDay, VIEW_PRICE_ALERTS_LIST);
     }
 
     /** 오타 URL → 정식 경로 */
@@ -101,18 +164,21 @@ public class PriceAlertViewController {
     }
 
     /**
-     * 차트보이(CHARTBOY) 목표가 돌파 로그 공개 조회. 종목명·코드 부분 일치 필터·자동완성·모바일 레이아웃.
+     * 차트보이(CHARTBOY) 목표가 돌파 로그 공개 조회. 종목명·코드 전체 일치 필터·자동완성. 검색 실행은 제출(또는 목록에서 후보 선택 시).
      */
     @GetMapping("${app.price-alert-public-slug}/log")
     public String listChartboyTriggerLog(@RequestParam(name = "page", defaultValue = "1") int page,
                                          @RequestParam(name = "size", defaultValue = "50") int size,
                                          @RequestParam(name = "q", required = false) String q,
+                                         @RequestParam(name = "triggered", required = false) String triggered,
+                                         @RequestParam(name = "from", required = false) String from,
+                                         HttpServletRequest request,
                                          HttpServletResponse response,
                                          Model model) {
         Optional<String> search = PriceAlertSearchSanitizer.validated(q);
         boolean rejected = PriceAlertSearchSanitizer.wasRejected(q, search);
         response.setHeader(HttpHeaders.CACHE_CONTROL, PUBLIC_CACHE_CONTROL);
-        return renderTriggerLog(model, page, size, search, rejected);
+        return renderTriggerLog(model, page, size, search, rejected, request, from, triggered);
     }
 
     @GetMapping("/admin/price-alerts")
@@ -126,7 +192,7 @@ public class PriceAlertViewController {
         boolean rejected = PriceAlertSearchSanitizer.wasRejected(q, search);
         return renderList(model, page, size, source,
                 user != null ? resolveKakaoNickname(user) : null, user != null, "admin/price-alerts", false,
-                search, rejected);
+                search, rejected, false, false, Optional.empty(), Optional.empty(), VIEW_PRICE_ALERTS_LIST);
     }
 
     @GetMapping("/price-alerts/edit")
@@ -178,11 +244,29 @@ public class PriceAlertViewController {
         return suggest(q, source);
     }
 
-    /** 자동완성: 공개(/chartboy/list) — 항상 CHARTBOY 한정 */
-    @GetMapping("${app.price-alert-public-slug}/list/suggest")
+    /** 자동완성: 공개({@code /private/{slug}/list/suggest}) — 항상 CHARTBOY 한정 */
+    @GetMapping("private/${app.price-alert-public-slug}/list/suggest")
     @ResponseBody
     public List<Map<String, String>> suggestChartboyPublic(@RequestParam(name = "q", required = false) String q,
                                                            HttpServletResponse response) {
+        response.setHeader(HttpHeaders.CACHE_CONTROL, PUBLIC_CACHE_CONTROL);
+        return suggest(q, "CHARTBOY");
+    }
+
+    /** 자동완성: 단축 URL {@code /{slug}/list/suggest} — CHARTBOY 한정 */
+    @GetMapping("${app.price-alert-public-slug}/list/suggest")
+    @ResponseBody
+    public List<Map<String, String>> suggestChartboyPublicShort(@RequestParam(name = "q", required = false) String q,
+                                                               HttpServletResponse response) {
+        response.setHeader(HttpHeaders.CACHE_CONTROL, PUBLIC_CACHE_CONTROL);
+        return suggest(q, "CHARTBOY");
+    }
+
+    /** 자동완성: {@code /{slug}/suggest} — {@code /{slug}} 목록 전용 · CHARTBOY 한정 */
+    @GetMapping("${app.price-alert-public-slug}/suggest")
+    @ResponseBody
+    public List<Map<String, String>> suggestChartboySlugRoot(@RequestParam(name = "q", required = false) String q,
+                                                             HttpServletResponse response) {
         response.setHeader(HttpHeaders.CACHE_CONTROL, PUBLIC_CACHE_CONTROL);
         return suggest(q, "CHARTBOY");
     }
@@ -295,12 +379,33 @@ public class PriceAlertViewController {
 
     private String renderList(Model model, int page, int size, String source,
                               String userNickname, boolean showLogout, String listPathPrefix, boolean readOnly,
-                              Optional<String> searchFilter, boolean searchRejected) {
+                              Optional<String> searchFilter, boolean searchRejected,
+                              boolean listEmptyUnlessSearchOrRegistered,
+                              boolean latestCreatedDayOnlyWhenNoSearch,
+                              Optional<LocalDate> latestCreatedSeoulDay,
+                              Optional<LocalDate> registeredSeoulDay,
+                              String listViewName) {
         int safeSize = size > 0 && size <= 200 ? size : DEFAULT_PAGE_SIZE;
         int safePage = page < 1 ? 1 : page;
         int offset = (safePage - 1) * safeSize;
 
-        PriceAlertPageResult result = supabaseService.getPriceAlerts(safeSize, offset, source, searchFilter);
+        boolean deferSlugLikeEmptyList = listEmptyUnlessSearchOrRegistered
+                && searchFilter.isEmpty()
+                && registeredSeoulDay.isEmpty();
+
+        PriceAlertPageResult result;
+        if (deferSlugLikeEmptyList) {
+            result = new PriceAlertPageResult(List.of(), 0);
+        } else if (latestCreatedDayOnlyWhenNoSearch && searchFilter.isEmpty() && registeredSeoulDay.isEmpty()) {
+            if (latestCreatedSeoulDay.isEmpty()) {
+                result = new PriceAlertPageResult(List.of(), 0);
+            } else {
+                result = supabaseService.getPriceAlerts(safeSize, offset, "CHARTBOY", Optional.empty(),
+                        latestCreatedSeoulDay);
+            }
+        } else {
+            result = supabaseService.getPriceAlerts(safeSize, offset, source, searchFilter, registeredSeoulDay);
+        }
 
         model.addAttribute("alerts", result.list());
         model.addAttribute("totalCount", result.totalCount());
@@ -308,27 +413,37 @@ public class PriceAlertViewController {
         model.addAttribute("currentPage", safePage);
         model.addAttribute("pageSize", safeSize);
         model.addAttribute("sourceFilter", source != null && !source.isBlank() ? source : "ALL");
-        model.addAttribute("today", LocalDate.now(ZoneId.of("Asia/Seoul")));
+        LocalDate todaySeoul = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        model.addAttribute("today", todaySeoul);
         model.addAttribute("userNickname", userNickname);
         model.addAttribute("showLogout", showLogout);
         model.addAttribute("listPathPrefix", listPathPrefix);
         model.addAttribute("readOnly", readOnly);
         model.addAttribute("searchQuery", searchFilter.orElse(""));
         model.addAttribute("searchRejected", searchRejected);
-        model.addAttribute("listQueryExtra", buildListQueryExtra(source, searchFilter, readOnly));
+        model.addAttribute("registeredDate", registeredSeoulDay.map(LocalDate::toString).orElse(""));
+        model.addAttribute("registeredFilterActive", readOnly && registeredSeoulDay.isPresent());
+        model.addAttribute("registeredFieldValue",
+                readOnly ? registeredSeoulDay.map(LocalDate::toString).orElse("") : "");
+        model.addAttribute("listQueryExtra", buildListQueryExtra(source, searchFilter, readOnly, registeredSeoulDay));
         model.addAttribute("suggestUrl", "/" + listPathPrefix + "/suggest");
+        model.addAttribute("slugListShowsSearchHint", VIEW_PRICE_ALERTS_SLUG_ROOT.equals(listViewName)
+                && searchFilter.isEmpty() && registeredSeoulDay.isEmpty() && !searchRejected);
+
         if (readOnly) {
             model.addAttribute("publicPriceAlertListPath", appProperties.publicPriceAlertListPath());
+            model.addAttribute("publicPriceAlertListSlugHref", appProperties.publicPriceAlertListSlugHref());
             model.addAttribute("publicPriceAlertLogPath", appProperties.publicPriceAlertLogPath());
         }
-        return "price-alerts/list";
+        return listViewName;
     }
 
     /**
      * 페이징·검색 링크용 쿼리 조각 ({@code &} 로 시작하는 연결).
      * 공개 목록({@code readOnly})은 API에서 항상 CHARTBOY만 조회하므로 URL에 {@code source} 를 넣지 않음.
      */
-    private static String buildListQueryExtra(String source, Optional<String> searchFilter, boolean chartboyPublicList) {
+    private static String buildListQueryExtra(String source, Optional<String> searchFilter, boolean chartboyPublicList,
+                                              Optional<LocalDate> registeredSeoulDay) {
         StringBuilder sb = new StringBuilder();
         if (!chartboyPublicList) {
             String s = source != null ? source.trim() : "";
@@ -337,45 +452,144 @@ public class PriceAlertViewController {
             }
         }
         searchFilter.ifPresent(v -> sb.append("&q=").append(URLEncoder.encode(v, StandardCharsets.UTF_8)));
+        registeredSeoulDay.ifPresent(d -> sb.append("&registered=").append(URLEncoder.encode(d.toString(),
+                StandardCharsets.UTF_8)));
         return sb.toString();
     }
 
     private String renderTriggerLog(Model model, int page, int size,
-                                     Optional<String> searchFilter, boolean searchRejected) {
+                                    Optional<String> searchFilter, boolean searchRejected,
+                                    HttpServletRequest request, String fromQuery,
+                                    String triggeredRaw) {
         int safeSize = size > 0 && size <= 200 ? size : DEFAULT_PAGE_SIZE;
         int safePage = page < 1 ? 1 : page;
         int offset = (safePage - 1) * safeSize;
 
-        PriceAlertTriggerPageResult result = supabaseService.getPriceAlertTriggers(safeSize, offset, "CHARTBOY", searchFilter);
+        LocalDate todaySeoul = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        boolean logAllTriggerDates = triggeredRaw != null && "all".equalsIgnoreCase(triggeredRaw.trim());
+        Optional<LocalDate> triggeredQueryDay = logAllTriggerDates ? Optional.empty()
+                : parseRegisteredDateParam(triggeredRaw).or(() -> Optional.of(todaySeoul));
+
+        PriceAlertTriggerPageResult result = supabaseService.getPriceAlertTriggers(safeSize, offset, "CHARTBOY",
+                searchFilter, triggeredQueryDay);
+
+        TriggerLogMainLink backNav = resolveTriggerLogMainLink(request, Optional.ofNullable(fromQuery));
+        boolean triggerLogAllDates = logAllTriggerDates;
+        String triggerLogDayField = triggerLogAllDates ? "" : triggeredQueryDay.map(LocalDate::toString).orElse("");
 
         model.addAttribute("triggers", result.list());
         model.addAttribute("totalCount", result.totalCount());
         model.addAttribute("totalPages", Math.max(1, (int) Math.ceil(result.totalCount() / (double) safeSize)));
         model.addAttribute("currentPage", safePage);
         model.addAttribute("pageSize", safeSize);
-        model.addAttribute("today", LocalDate.now(ZoneId.of("Asia/Seoul")));
+        model.addAttribute("today", todaySeoul);
+        model.addAttribute("triggerLogAllDates", triggerLogAllDates);
+        model.addAttribute("triggerLogDayField", triggerLogDayField);
         model.addAttribute("listPathPrefix", publicLogPathPrefix());
         model.addAttribute("searchQuery", searchFilter.orElse(""));
         model.addAttribute("searchRejected", searchRejected);
-        model.addAttribute("listQueryExtra", buildTriggerLogQueryExtra(searchFilter));
+        model.addAttribute("listQueryExtra", buildTriggerLogQueryExtra(searchFilter, backNav.fromParam(),
+                triggerLogAllDates, triggeredQueryDay));
+        model.addAttribute("triggerLogStickyQueryExtra",
+                buildTriggerLogQueryExtra(Optional.empty(), backNav.fromParam(),
+                        triggerLogAllDates, triggeredQueryDay));
+        model.addAttribute("triggerLogAllPeriodExtra",
+                buildTriggerLogQueryExtra(Optional.empty(), backNav.fromParam(), true, Optional.empty()));
+        model.addAttribute("triggerLogResetToTodayExtra",
+                buildTriggerLogQueryExtra(Optional.empty(), backNav.fromParam(), false, Optional.of(todaySeoul)));
         model.addAttribute("suggestUrl", appProperties.publicPriceAlertLogPath() + "/suggest");
-        model.addAttribute("publicPriceAlertListPath", appProperties.publicPriceAlertListPath());
-        model.addAttribute("publicPriceAlertLogPath", appProperties.publicPriceAlertLogPath());
+        model.addAttribute("triggerLogMainListHref", backNav.href());
+        model.addAttribute("triggerLogFromParam", backNav.fromParam());
         return "price-alerts/trigger-log";
     }
 
     private String publicListPathPrefix() {
-        return appProperties.normalizedPriceAlertPublicSlug() + "/list";
+        return "private/" + appProperties.normalizedPriceAlertPublicSlug() + "/list";
     }
 
     private String publicLogPathPrefix() {
         return appProperties.normalizedPriceAlertPublicSlug() + "/log";
     }
 
-    private static String buildTriggerLogQueryExtra(Optional<String> searchFilter) {
+    /** {@link #renderTriggerLog} 페이징·검색 링크 — {@code &} 로 시작. */
+    private static String buildTriggerLogQueryExtra(Optional<String> searchFilter, String fromParam,
+                                                    boolean logAllTriggerDates, Optional<LocalDate> triggeredSeoulDay) {
         StringBuilder sb = new StringBuilder();
         searchFilter.ifPresent(v -> sb.append("&q=").append(URLEncoder.encode(v, StandardCharsets.UTF_8)));
+        if (fromParam != null && !fromParam.isBlank()) {
+            sb.append("&from=").append(URLEncoder.encode(fromParam.trim().toLowerCase(), StandardCharsets.UTF_8));
+        }
+        if (logAllTriggerDates) {
+            sb.append("&triggered=all");
+        } else {
+            triggeredSeoulDay.ifPresent(d -> sb.append("&triggered=")
+                    .append(URLEncoder.encode(d.toString(), StandardCharsets.UTF_8)));
+        }
         return sb.toString();
+    }
+
+    /** 돌파 로그 화면 “메인 목록” 목적지 및 페이징·검색 시 연속되는 {@code &from=} 값. */
+    private record TriggerLogMainLink(String href, String fromParam) {}
+
+    private TriggerLogMainLink resolveTriggerLogMainLink(HttpServletRequest request,
+                                                         Optional<String> fromQueryRaw) {
+        Optional<String> fromCanonical = fromQueryRaw
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(String::toLowerCase)
+                .filter(s -> s.equals("slug") || s.equals("list") || s.equals("private"));
+        String from = fromCanonical.orElseGet(() -> inferTriggerLogFromReferer(request));
+        String slug = appProperties.normalizedPriceAlertPublicSlug();
+        return switch (from) {
+            case "private" -> new TriggerLogMainLink(appProperties.publicPriceAlertListPath(), from);
+            case "list" -> new TriggerLogMainLink("/" + slug + "/list", from);
+            default -> new TriggerLogMainLink(appProperties.publicPriceAlertListSlugHref(), "slug");
+        };
+    }
+
+    private String inferTriggerLogFromReferer(HttpServletRequest request) {
+        String slug = appProperties.normalizedPriceAlertPublicSlug();
+        String ref = request.getHeader("Referer");
+        if (ref == null || ref.isBlank()) {
+            return "slug";
+        }
+        try {
+            String path = stripContextNormalizePath(request, URI.create(ref).normalize().getRawPath());
+            String privateList = "/private/" + slug + "/list";
+            String shortList = "/" + slug + "/list";
+            String slugRoot = "/" + slug;
+            if ("/stocker".equals(path)) {
+                return "private";
+            }
+            if (privateList.equals(path)) {
+                return "private";
+            }
+            if (shortList.equals(path)) {
+                return "list";
+            }
+            if (slugRoot.equals(path)) {
+                return "slug";
+            }
+        } catch (IllegalArgumentException ignored) {
+            // malformed Referer
+        }
+        return "slug";
+    }
+
+    /** Referer 또는 URI 경로 문자열에서 context-path 제거 후 끝 슬래시 정리. */
+    private static String stripContextNormalizePath(HttpServletRequest request, String rawPath) {
+        String path = rawPath != null ? rawPath : "/";
+        String ctx = request.getContextPath();
+        if (!ctx.isEmpty() && path.startsWith(ctx)) {
+            path = path.substring(ctx.length());
+        }
+        if (path.isBlank()) {
+            path = "/";
+        }
+        while (path.length() > 1 && path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+        return path;
     }
 
     private String renderEditForm(Long id, Model model, String userNickname, boolean showLogout, String listPathPrefix) {
@@ -400,6 +614,18 @@ public class PriceAlertViewController {
         model.addAttribute("userNickname", userNickname);
         model.addAttribute("showLogout", showLogout);
         return "price-alerts/edit";
+    }
+
+    /** 공개 목록 {@code registered} 쿼리 — {@code yyyy-MM-dd} 만 허용, 그 외 무시. */
+    private static Optional<LocalDate> parseRegisteredDateParam(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(LocalDate.parse(raw.trim()));
+        } catch (DateTimeParseException e) {
+            return Optional.empty();
+        }
     }
 
     private static String resolveKakaoNickname(OAuth2User user) {

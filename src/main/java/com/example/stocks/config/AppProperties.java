@@ -18,7 +18,7 @@ import java.util.Locale;
 public class AppProperties {
 
     /**
-     * 공개 price_alerts 목록·돌파 로그 URL 접두사 ({@code /{slug}/list}, {@code /{slug}/log}).
+     * 공개 price_alerts 목록·돌파 로그 경로 ({@code /private/{slug}/list}, {@code /{slug}}, {@code /{slug}/list}, {@code /{slug}/log}).
      * 슬래시 없이 영문·숫자만 (예: {@code chartboy}, {@code x7k9m2}).
      */
     private String priceAlertPublicSlug = "chartboy";
@@ -66,7 +66,17 @@ public class AppProperties {
     }
 
     public String publicPriceAlertListPath() {
-        return "/" + normalizedPriceAlertPublicSlug() + "/list";
+        return "/private/" + normalizedPriceAlertPublicSlug() + "/list";
+    }
+
+    /** 공개 단축 전체 목록 {@code /{slug}} (선행 슬래시 포함, {@code /private/{slug}/list} 와 동일 기능). */
+    public String publicPriceAlertListSlugHref() {
+        return "/" + normalizedPriceAlertPublicSlug();
+    }
+
+    /** {@link #publicPriceAlertListSlugHref()} 의 경로 접두만 — 페이징·폼 {@code listPathPrefix} 용. */
+    public String publicPriceAlertListSlugPathWithoutLeadingSlash() {
+        return normalizedPriceAlertPublicSlug();
     }
 
     public String publicPriceAlertLogPath() {
