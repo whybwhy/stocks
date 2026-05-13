@@ -52,7 +52,7 @@ spring:
 app:
   price-alert-public-slug: ${APP_PRICE_ALERT_PUBLIC_SLUG:ec39yktk33}
   # true: 허용 시각 창만 접근 가능 · false: 24시간 항상 접근. ENV: APP_PRICE_ALERT_PUBLIC_TIME_RESTRICTED=false
-  price-alert-public-time-restricted: ${APP_PRICE_ALERT_PUBLIC_TIME_RESTRICTED:false}
+  price-alert-public-time-restricted: ${APP_PRICE_ALERT_PUBLIC_TIME_RESTRICTED:true}
   # 공개 목록·로그 접근 허용 시각 (위가 true 일 때만). 기본 한국 시간 06:00 이상 · 10:00 미만. /stocker 는 제외.
   price-alert-public-window-zone: ${APP_PRICE_ALERT_PUBLIC_WINDOW_ZONE:Asia/Seoul}
   price-alert-public-window-start-hour: ${APP_PRICE_ALERT_PUBLIC_WINDOW_START_HOUR:6}
