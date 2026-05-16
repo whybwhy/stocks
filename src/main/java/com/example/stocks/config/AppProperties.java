@@ -84,10 +84,17 @@ public class AppProperties {
     }
 
     /**
-     * {@code true}면 공개 목록·돌파 로그 URL을 {@link #priceAlertPublicWindowStartHour}~{@link #priceAlertPublicWindowEndHour}(미만) 에만 허용.
-     * {@code false}면 24시간 항상 접근 가능 (/stocker 는 원래 무제한).
+     * {@code true}면 공개 목록·돌파 로그 URL을 평일에 한해 {@link #priceAlertPublicWindowStartHour}~{@link #priceAlertPublicWindowEndHour}(미만) 에만 허용.
+     * {@code false}면 평일은 24시간 접근 가능. 토·일 차단은 {@link #priceAlertPublicCloseOnWeekends} 와 별개.
+     * {@code /stocker} 는 원래 무제한.
      */
     private boolean priceAlertPublicTimeRestricted = true;
+
+    /**
+     * {@code true}면 토·일(설정 타임존 달력)에는 공개 slug·돌파 로그 경로를 허용하지 않음.
+     * 평일에는 {@link #isPriceAlertPublicTimeRestricted}·{@link #isWithinPriceAlertPublicTimeWindow} 만 적용됩니다.
+     */
+    private boolean priceAlertPublicCloseOnWeekends = false;
 
     /**
      * 타임존 (공개 목록·돌파 로그 접근 시간대). 기본 {@code Asia/Seoul}.
@@ -142,6 +149,26 @@ public class AppProperties {
 
     public void setPriceAlertPublicTimeRestricted(boolean priceAlertPublicTimeRestricted) {
         this.priceAlertPublicTimeRestricted = priceAlertPublicTimeRestricted;
+    }
+
+    public boolean isPriceAlertPublicCloseOnWeekends() {
+        return priceAlertPublicCloseOnWeekends;
+    }
+
+    public void setPriceAlertPublicCloseOnWeekends(boolean priceAlertPublicCloseOnWeekends) {
+        this.priceAlertPublicCloseOnWeekends = priceAlertPublicCloseOnWeekends;
+    }
+
+    /**
+     * 설정 타임존 기준 토요일 또는 일요일 여부와 {@link #priceAlertPublicCloseOnWeekends} 조합 —
+     * 공개 경로 차단 필터 전용 ({@code true} 면 접근 차단 필요).
+     */
+    public boolean isPriceAlertBlockedForWeekendNow(java.time.ZonedDateTime now) {
+        if (!priceAlertPublicCloseOnWeekends) {
+            return false;
+        }
+        java.time.DayOfWeek dow = now.getDayOfWeek();
+        return dow == java.time.DayOfWeek.SATURDAY || dow == java.time.DayOfWeek.SUNDAY;
     }
 
     private static int clampHour(int h, int d) {
