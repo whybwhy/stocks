@@ -1,0 +1,15 @@
+---
+description: /dd 명령 및 일일 목표가 이중 INSERT(price_alerts·price_alerts_log) 규격
+globs: src/main/resources/**/*price_alert*.sql
+alwaysApply: false
+---
+
+# 목표가 이중 적재 규격
+
+- **파일 이름**: `src/main/resources/YYYYMMDD_price_alerts_<설명>_dual.sql` (날짜 8자리 prefix 고정 권장).
+- **`price_alerts`**: `created_at` 생략, `source = 'CHARTBOY'` 고정. 멱등은 `symbol` + `target_price` + `condition`.
+- **`price_alerts_log`**: `posted_by ∈ ('CHARTBOY','HYONYHYONY')` 만. 줄이 **✔/✔️** 로 시작하면 `CHARTBOY`, 블록이 **🌈** 로 시작하면 `HYONYHYONY`. 멱등 없음.
+- 종목 코드는 레포 주석/Naver/KRX 근거로만; **유사종목으로 바꿔 넣기 금지**. 미매칭은 결과에 목록만.
+- DDL·마이그레이션: `price_alerts_log.sql`, `price_alerts_log_migrate_posted_by.sql`.
+
+자세한 절차는 `.cursor/commands/dd.md` 참고.

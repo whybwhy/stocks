@@ -1,4 +1,5 @@
 -- 차트보이 메모 (source = CHARTBOY) — 2026-05-13
+-- 파일명: 20260513_price_alerts_chartboy_batch.sql (YYYYMMDD_price_alerts_* 규약)
 -- 멱등: (symbol, target_price) 동일 행이 있으면 삽입 생략 (condition 무시)
 --
 -- 미삽입(가격 타깃 불명 또는 관찰만): 우상향차트(현대오토에버·서진시스템·코미코·하나머티리얼즈·하나마이크론·

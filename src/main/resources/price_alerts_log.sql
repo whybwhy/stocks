@@ -1,13 +1,23 @@
--- 목표가 일별 적재·로그 테이블 (알람 price_alerts 와 분리 · 중복 허용)
--- 동일 종목·가격이라도 줄줄이 쌓을 수 있음.
--- 업로드 주체: 차트보이(CHARTBOY) / 효니효니(HYONY)
+-- =============================================================================
+-- price_alerts_log — 목표가 메모 적재 전용 원장 테이블
+-- - 알람용 price_alerts 와 분리 (여기만 중복 삽입 허용 · 멱등 제약 없음)
+-- =============================================================================
 --
--- Supabase: 본 스크립트 실행 후 PostgREST에 테이블이 보이도록 스키마 캐시 반영(보통 자동).
--- RLS를 켠 경우 anon/service_role용 INSERT·SELECT 정책을 별도로 두어야 REST로 적재 가능.
+-- posted_by (필수, 아래 두 값만):
+--   CHARTBOY     — 줄이 ✔ 또는 ✔️ 로 시작하는「영상 전 요약」블록 (차트보이)
+--   HYONYHYONY   — 본문이 🌈(무지개 이모지)로 시작하는 멤버쉽·효니효니 정리
+--
+-- (알람 테이블 price_alerts.source 의 'CHARTBOY' 문자열과 의미만 유사하지,
+--    이 컬럼은 원장 작성자 표기 전용이라 값 집합이 다를 수 있음.)
+--
+-- Supabase REST: 테이블 스키마 반영 후 사용. RLS 사용 시 anon 등 INSERT 정책 필요.
+--
+-- 과거 DDL이 posted_by 에 차트보이·효니효니·HYONY 등을 썼다면
+-- → price_alerts_log_migrate_posted_by.sql 먼저 실행.
 
 CREATE TABLE IF NOT EXISTS public.price_alerts_log (
     id bigserial PRIMARY KEY,
-    posted_by text NOT NULL CHECK (posted_by IN ('CHARTBOY', 'HYONY')),
+    posted_by text NOT NULL CHECK (posted_by IN ('CHARTBOY', 'HYONYHYONY')),
     market text NOT NULL DEFAULT 'KR' CHECK (market IN ('KR', 'NAS', 'NYS', 'AMS')),
     stock_code text NOT NULL,
     symbol text,
@@ -24,11 +34,7 @@ CREATE INDEX IF NOT EXISTS idx_price_alerts_log_stock_code
     ON public.price_alerts_log (stock_code);
 
 COMMENT ON TABLE public.price_alerts_log IS
-  '목표가 메모 적재 로그(price_alerts 는 알람 전용·멱등).';
+  '목표가 텍스트 원장(price_alerts 는 알람 전용·멱등).';
 
 COMMENT ON COLUMN public.price_alerts_log.posted_by IS
-  'CHARTBOY=차트보이, HYONY=효니효니';
-
--- 기존명에서 변경 시 테이블만 이름 바꾸려면 예:
--- ALTER TABLE public.price_alert_originals RENAME TO price_alerts_log;
--- ALTER TABLE public.price_alert_daily_imports RENAME TO price_alerts_log;
+  'CHARTBOY=✔요약 차트보이 블록, HYONYHYONY=🌈로 시작하는 효니효니 멤버쉽 본문';
