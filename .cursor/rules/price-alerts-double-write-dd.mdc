@@ -6,6 +6,8 @@ alwaysApply: false
 
 # 목표가 이중 적재 규격
 
+- **기본(`/dd` 만)**: SQL 파일 생성만.**Supabase/DB 실제 INSERT 금지.**
+- **`갱신해줘` 등 명시 시**: 해당 `*_dual.sql` 내용대로 **`price_alerts`**(멱등)·**`price_alerts_log`**(중복 허용) 실제 적재.
 - **파일 이름**: `src/main/resources/YYYYMMDD_price_alerts_<설명>_dual.sql` (날짜 8자리 prefix 고정 권장).
 - **`price_alerts`**: `created_at` 생략, `source = 'CHARTBOY'` 고정. 멱등은 `symbol` + `target_price` + `condition`.
 - **`price_alerts_log`**: `posted_by ∈ ('CHARTBOY','HYONYHYONY')` 만. 줄이 **✔/✔️** 로 시작하면 `CHARTBOY`, 블록이 **🌈** 로 시작하면 `HYONYHYONY`. 멱등 없음.
