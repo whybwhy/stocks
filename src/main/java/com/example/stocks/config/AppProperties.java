@@ -83,6 +83,11 @@ public class AppProperties {
         return "/" + normalizedPriceAlertPublicSlug() + "/log";
     }
 
+    /** 메모 원장(차트보이·효니효니 최신 적재일) 보기 경로 ({@code /{slug}/log/new}). */
+    public String publicPriceAlertMemoLogNewPath() {
+        return "/" + normalizedPriceAlertPublicSlug() + "/log/new";
+    }
+
     /**
      * {@code true}면 공개 목록·돌파 로그 URL을 평일에 한해 {@link #priceAlertPublicWindowStartHour}~{@link #priceAlertPublicWindowEndHour}(미만) 에만 허용.
      * {@code false}면 평일은 24시간 접근 가능. 토·일 차단은 {@link #priceAlertPublicCloseOnWeekends} 와 별개.

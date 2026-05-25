@@ -37,8 +37,9 @@ import java.util.Optional;
  * {@code triggered} 미지정 시 서울 달력 “오늘” {@code triggered_at} 로 필터·{@code triggered=all} 시 일자 무시),
  * 목록: {@code /private/{slug}/list} (전체), {@code /{slug}} (단축: 검색 조건 없으면 조회 안 함 — 제출 후 CHARTBOY 필터 목록),
  * {@code /{slug}/list} (검색·등록일 미지정 시 최신 등록일 행만).
+ * 메모 원장 최신일: {@code /{slug}/log/new} — {@code price_alerts_log} 작성자별 최신 서울 적재일 행만.
  * 단축 경로 {@code /{slug}} 는 뷰 {@code price-alerts/slug} , 그 외 목록 공개·로그인·관리는 {@code price-alerts/list}.
- * 스키마: {@code src/main/resources/price_alerts.sql}, {@code price_alert_triggers_ddl.sql}
+ * 스키마: {@code src/main/resources/price_alerts.sql}, {@code price_alert_triggers_ddl.sql}, {@code price_alerts_log.sql}
  */
 @Controller
 public class PriceAlertViewController {
@@ -179,6 +180,38 @@ public class PriceAlertViewController {
         boolean rejected = PriceAlertSearchSanitizer.wasRejected(q, search);
         response.setHeader(HttpHeaders.CACHE_CONTROL, PUBLIC_CACHE_CONTROL);
         return renderTriggerLog(model, page, size, search, rejected, request, from, triggered);
+    }
+
+    /**
+     * {@code price_alerts_log} 공개 뷰 — 차트보이·효니효니 각각 <strong>최신 서울 적재일</strong>의 행만 마크다운 코드 블록 형태로 표시.
+     */
+    @GetMapping("${app.price-alert-public-slug}/log/new")
+    public String priceAlertMemoLogNew(HttpServletResponse response, Model model) {
+        response.setHeader(HttpHeaders.CACHE_CONTROL, PUBLIC_CACHE_CONTROL);
+        String chartboyKey = "CHARTBOY";
+        String hyonyKey = "HYONYHYONY";
+        LocalDate todaySeoul = LocalDate.now(ZoneId.of("Asia/Seoul"));
+
+        Optional<LocalDate> chartboyDay = supabaseService.getLatestPriceAlertLogSeoulDay(chartboyKey);
+        Optional<LocalDate> hyonyDay = supabaseService.getLatestPriceAlertLogSeoulDay(hyonyKey);
+
+        var chartboyRows = chartboyDay
+                .map(d -> supabaseService.getPriceAlertLogsOnSeoulDay(chartboyKey, d))
+                .orElse(List.of());
+        var hyonyRows = hyonyDay
+                .map(d -> supabaseService.getPriceAlertLogsOnSeoulDay(hyonyKey, d))
+                .orElse(List.of());
+
+        model.addAttribute("today", todaySeoul);
+        model.addAttribute("chartboyBatchDate", chartboyDay.map(LocalDate::toString).orElse(null));
+        model.addAttribute("hyonyBatchDate", hyonyDay.map(LocalDate::toString).orElse(null));
+        model.addAttribute("chartboyMarkdown", PriceAlertLogMarkdownComposer.composeChartboyMarkdown(chartboyRows));
+        model.addAttribute("hyonyMarkdown", PriceAlertLogMarkdownComposer.composeHyonyMarkdown(
+                hyonyDay.orElse(null), hyonyRows));
+        model.addAttribute("triggerLogHref", appProperties.publicPriceAlertLogPath());
+        model.addAttribute("slugListHref", "/" + appProperties.normalizedPriceAlertPublicSlug() + "/list");
+        model.addAttribute("publicPriceAlertListPath", appProperties.publicPriceAlertListPath());
+        return "price-alerts/log-new";
     }
 
     @GetMapping("/admin/price-alerts")
@@ -434,6 +467,7 @@ public class PriceAlertViewController {
             model.addAttribute("publicPriceAlertListPath", appProperties.publicPriceAlertListPath());
             model.addAttribute("publicPriceAlertListSlugHref", appProperties.publicPriceAlertListSlugHref());
             model.addAttribute("publicPriceAlertLogPath", appProperties.publicPriceAlertLogPath());
+            model.addAttribute("publicPriceAlertMemoLogNewPath", appProperties.publicPriceAlertMemoLogNewPath());
         }
         return listViewName;
     }
@@ -498,6 +532,7 @@ public class PriceAlertViewController {
         model.addAttribute("triggerLogResetToTodayExtra",
                 buildTriggerLogQueryExtra(Optional.empty(), backNav.fromParam(), false, Optional.of(todaySeoul)));
         model.addAttribute("suggestUrl", appProperties.publicPriceAlertLogPath() + "/suggest");
+        model.addAttribute("publicPriceAlertMemoLogNewPath", appProperties.publicPriceAlertMemoLogNewPath());
         model.addAttribute("triggerLogMainListHref", backNav.href());
         model.addAttribute("triggerLogFromParam", backNav.fromParam());
         return "price-alerts/trigger-log";

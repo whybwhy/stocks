@@ -73,9 +73,11 @@ argument-hint: "[종목·가격 블록] 선택: 끝에 «갱신해줘» 있으�
 - **`price_alerts_log`**: 생성된 VALUES 마다 POST (중복 허용).
 - 스크립트에서 직접 실행할 때는 민감정보를 채팅에 노출하지 말 것.
 
----
+## 공개 확인 (`price_alerts_log`)
 
-## 응답 끝 고정 문구 (`{slug}` 치환)
+적재 후 사용자용 블록 복사 뷰(작성자별 최신 적재일·서울): `/{slug}/log/new`
+
+---
 
 `application.yml` 의 `price-alert-public-slug` 기본값으로 `{slug}` 를 바꿔 출력.
 

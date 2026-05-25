@@ -14,6 +14,8 @@
             <h1 class="text-xl sm:text-2xl font-bold text-slate-800"></h1>
         </div>
         <div th:if="${readOnly}" class="flex flex-wrap items-center gap-2 shrink-0">
+            <a th:href="${publicPriceAlertMemoLogNewPath}"
+               class="px-3 py-1.5 rounded-lg border border-slate-400 bg-white text-slate-800 text-sm font-medium hover:bg-slate-50">메모 원장</a>
             <a th:href="${publicPriceAlertLogPath}"
                class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm hover:bg-slate-50">돌파 로그</a>
         </div>

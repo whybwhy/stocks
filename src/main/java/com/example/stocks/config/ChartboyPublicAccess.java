@@ -4,7 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Component;
 
 /**
- * 공개 price_alerts URL ({@code /private/{slug}/list|…}, {@code /{slug}|…}, {@code /{slug}/list|…}, {@code /{slug}/log}) 판별.
+ * 공개 price_alerts URL ({@code /private/{slug}/list|…}, {@code /{slug}|…}, {@code /{slug}/list|…}, {@code /{slug}/log|…}) 판별.
  */
 @Component
 public class ChartboyPublicAccess {
@@ -37,7 +37,7 @@ public class ChartboyPublicAccess {
     }
 
     /**
-     * 시간대 제한 대상 ({@code /private/{slug}/list|…}, {@code /{slug}|…}, {@code /{slug}/list|…}, {@code /{slug}/log|…}, {@code /chartbody/log}).
+     * 시간대 제한 대상 ({@code /private/{slug}/list|…}, {@code /{slug}|…}, {@code /{slug}/list|…}, {@code /{slug}/log|…}(예: 돌파 로그·메모 원장), {@code /chartbody/log}).
      * {@code /stocker} 등 다른 공개 경로는 제외.
      */
     public boolean isPriceAlertSlugScopedPath(HttpServletRequest request) {

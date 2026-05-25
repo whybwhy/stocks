@@ -9,11 +9,10 @@
 -- 켄코아에어로스페이스: 영상에 숫자 목표 미기재(ft. 상한가매매법). 아래 타깃은 5·19 자정 무렵 네거래일 종가(25,950원)를
 -- 「상한가일 기준 종가 레퍼런스」로 두었으며, 레퍼런스 수정 시 해당 행 가격만 바꿔도 됩니다.
 --
--- 등록 시각 created_at: 2026-05-18 00:00 (Asia/Seoul)
+-- created_at 미지정 — DB 기본(now)·레포 앱 규격과 동일
 
-INSERT INTO public.price_alerts (market, stock_code, symbol, target_price, condition, label, source, created_at)
-SELECT v.market, v.stock_code, v.symbol, v.target_price::numeric(18, 2), v.condition, v.label, 'CHARTBOY',
-       timestamptz '2026-05-18 00:00:00+09'
+INSERT INTO public.price_alerts (market, stock_code, symbol, target_price, condition, label, source)
+SELECT v.market, v.stock_code, v.symbol, v.target_price::numeric(18, 2), v.condition, v.label, 'CHARTBOY'
 FROM (VALUES
   ('KR', '211270', 'AP위성', 18900, 'ABOVE',
    '18,900원 돌파시 / 이동평균선매매법 / 스페이스X·5·18'),

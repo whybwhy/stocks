@@ -1,11 +1,10 @@
 -- 차트보이(CHARTBOY) 메모 — 2026-05-16
 -- 종목코드: 삼성에스디에스 018260, 우주일렉트로 065680
 -- 멱등: (symbol, target_price) 동일 행이 있으면 삽입 생략
--- 등록 시각 created_at: 2026-05-16 00:00 (Asia/Seoul)
+-- created_at 미지정 — DB 기본(now)·레포 앱 규격과 동일
 
-INSERT INTO public.price_alerts (market, stock_code, symbol, target_price, condition, label, source, created_at)
-SELECT v.market, v.stock_code, v.symbol, v.target_price::numeric(18, 2), v.condition, v.label, 'CHARTBOY',
-       timestamptz '2026-05-16 00:00:00+09'
+INSERT INTO public.price_alerts (market, stock_code, symbol, target_price, condition, label, source)
+SELECT v.market, v.stock_code, v.symbol, v.target_price::numeric(18, 2), v.condition, v.label, 'CHARTBOY'
 FROM (VALUES
   ('KR', '018260', '삼성에스디에스', 198800, 'ABOVE',
    '▶️ 198,800원 돌파시. (재매수 가능함)'),

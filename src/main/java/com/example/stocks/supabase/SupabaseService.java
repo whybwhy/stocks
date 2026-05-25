@@ -9,6 +9,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriBuilder;
 
 import com.example.stocks.alert.PriceAlertDto;
+import com.example.stocks.alert.PriceAlertLogDto;
 import com.example.stocks.alert.PriceAlertTriggerDto;
 
 import org.slf4j.Logger;
@@ -23,6 +24,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -78,6 +80,7 @@ public class SupabaseService {
     }
 
     private static final String PRICE_ALERTS_TABLE = "price_alerts";
+    private static final String PRICE_ALERT_LOG_TABLE = "price_alerts_log";
     private static final String PRICE_ALERT_TRIGGERS_TABLE = "price_alert_triggers";
     private static final ZoneId SEOUL_ZONE = ZoneId.of("Asia/Seoul");
 
@@ -85,6 +88,8 @@ public class SupabaseService {
             "id,market,stock_code,symbol,target_price,condition,label,source,is_active,triggered_at,created_at";
     private static final String PRICE_ALERT_TRIGGER_SELECT_COLUMNS =
             "id,alert_id,market,stock_code,symbol,target_price,condition,trigger_price,label,source,triggered_at";
+    private static final String PRICE_ALERT_LOG_SELECT_COLUMNS =
+            "id,posted_by,market,stock_code,symbol,target_price,condition,label,created_at";
 
     /**
      * price_alerts 목록 (id 내림차순). source가 null/blank/ALL 이면 전체.
@@ -181,6 +186,74 @@ public class SupabaseService {
             }
         }
         return LocalDate.ofInstant(instant, SEOUL_ZONE);
+    }
+
+    /**
+     * {@code price_alerts_log} 에서 {@code posted_by} 가 일치하는 행 중 최신 {@code created_at} 의 서울 달력 날짜.
+     */
+    public Optional<LocalDate> getLatestPriceAlertLogSeoulDay(String postedBy) {
+        if (postedBy == null || postedBy.isBlank()) {
+            return Optional.empty();
+        }
+        String pbNorm = normalizePostedByForLog(postedBy);
+        if (pbNorm.isEmpty()) {
+            return Optional.empty();
+        }
+        ResponseEntity<List<PriceAlertLogDto>> response = supabaseRestClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/rest/v1/" + PRICE_ALERT_LOG_TABLE)
+                        .queryParam("select", "created_at")
+                        .queryParam("posted_by", "eq." + pbNorm)
+                        .queryParam("order", "created_at.desc")
+                        .queryParam("limit", "1")
+                        .build())
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .toEntity(new ParameterizedTypeReference<List<PriceAlertLogDto>>() {});
+        List<PriceAlertLogDto> body = response.getBody();
+        if (body == null || body.isEmpty() || body.getFirst().getCreatedAt() == null) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(parseCreatedAtToSeoulDate(body.getFirst().getCreatedAt()));
+    }
+
+    /** {@code posted_by}·서울 달력일에 해당하는 원장 행 전부(최대 5000, id 오름차순). */
+    public List<PriceAlertLogDto> getPriceAlertLogsOnSeoulDay(String postedBy, LocalDate day) {
+        if (postedBy == null || postedBy.isBlank() || day == null) {
+            return List.of();
+        }
+        String pbNorm = normalizePostedByForLog(postedBy);
+        if (pbNorm.isEmpty()) {
+            return List.of();
+        }
+        ResponseEntity<List<PriceAlertLogDto>> response = supabaseRestClient.get()
+                .uri(uriBuilder -> {
+                    uriBuilder
+                            .path("/rest/v1/" + PRICE_ALERT_LOG_TABLE)
+                            .queryParam("select", PRICE_ALERT_LOG_SELECT_COLUMNS)
+                            .queryParam("posted_by", "eq." + pbNorm)
+                            .queryParam("order", "id.asc")
+                            .queryParam("limit", "5000");
+                    appendTimestampBetweenSeoulDay(uriBuilder, "created_at", day);
+                    return uriBuilder.build();
+                })
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .toEntity(new ParameterizedTypeReference<List<PriceAlertLogDto>>() {});
+        List<PriceAlertLogDto> list = response.getBody();
+        return list != null ? list : List.of();
+    }
+
+    /** {@code CHARTBOY}/{@code HYONYHYONY} 만 REST 필터에 사용. */
+    private static String normalizePostedByForLog(String postedBy) {
+        if (postedBy == null || postedBy.isBlank()) {
+            return "";
+        }
+        String u = postedBy.trim().toUpperCase(Locale.ROOT);
+        if ("CHARTBOY".equals(u) || "HYONYHYONY".equals(u)) {
+            return u;
+        }
+        return "";
     }
 
     /**

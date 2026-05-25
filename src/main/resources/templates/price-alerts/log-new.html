@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+    <title>목표가 메모 원장 (price_alerts_log)</title>
+    <link rel="icon" type="image/png" th:href="@{/favicon.png}" href="/favicon.png"/>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen">
+<div class="w-full max-w-[100rem] mx-auto p-4 sm:p-6">
+    <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+            <h1 class="text-xl sm:text-2xl font-bold text-slate-800">메모 원장</h1>
+            <span id="liveDateTime" class="text-xs sm:text-sm text-slate-500"></span>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 shrink-0">
+            <a th:href="${slugListHref}"
+               class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm hover:bg-slate-50 whitespace-nowrap">목록</a>
+            <a th:href="${triggerLogHref}"
+               class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm hover:bg-slate-50 whitespace-nowrap">돌파 로그</a>
+            <a th:href="${publicPriceAlertListPath}"
+               class="hidden sm:inline-block px-3 py-1.5 rounded-lg border border-slate-500 text-slate-700 text-sm hover:bg-slate-100 whitespace-nowrap">비공개 URL</a>
+        </div>
+    </div>
+
+    <p class="mb-4 text-sm text-slate-600">
+        차트보이·효니효니 각각 <strong class="font-medium text-slate-800">최근에 기록된 날짜</strong>(서울 시간 기준)에 들어 온 줄만 표시합니다.
+        <span class="block sm:inline mt-1 sm:mt-0 text-slate-500">오늘(서울): <span th:text="${today}"></span></span>
+    </p>
+
+    <section class="mb-8 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="px-4 sm:px-6 py-3 border-b border-slate-100 bg-slate-50 flex flex-wrap items-baseline gap-2">
+            <h2 class="text-base font-semibold text-slate-800">차트보이 ✔ 요약</h2>
+            <span class="text-xs text-slate-500" th:if="${chartboyBatchDate != null}"
+                  th:text="'적재일(서울) ' + ${chartboyBatchDate}">적재일</span>
+            <span class="text-xs text-slate-400" th:if="${chartboyBatchDate == null}">데이터 없음</span>
+        </div>
+        <div class="p-3 sm:p-4">
+            <pre class="rounded-lg bg-slate-900 text-slate-100 text-sm sm:text-base leading-relaxed px-4 py-3 overflow-x-auto font-mono whitespace-pre-wrap border border-slate-700 shadow-inner"
+                 th:text="${chartboyMarkdown}"></pre>
+        </div>
+    </section>
+
+    <section class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="px-4 sm:px-6 py-3 border-b border-slate-100 bg-slate-50 flex flex-wrap items-baseline gap-2">
+            <h2 class="text-base font-semibold text-slate-800">효니효니 멤버쉽 🌈</h2>
+            <span class="text-xs text-slate-500" th:if="${hyonyBatchDate != null}"
+                  th:text="'적재일(서울) ' + ${hyonyBatchDate}">적재일</span>
+            <span class="text-xs text-slate-400" th:if="${hyonyBatchDate == null}">데이터 없음</span>
+        </div>
+        <div class="p-3 sm:p-4">
+            <pre class="rounded-lg bg-slate-900 text-slate-100 text-sm sm:text-base leading-relaxed px-4 py-3 overflow-x-auto font-mono whitespace-pre-wrap border border-slate-700 shadow-inner"
+                 th:text="${hyonyMarkdown}"></pre>
+        </div>
+    </section>
+
+    <p class="mt-6 text-xs text-slate-500">
+        브라우저에서 복사할 때 코드 블록 전체를 드래그하거나 선택해 복사하면 됩니다.
+    </p>
+</div>
+<script>
+(function(){
+  var el = document.getElementById('liveDateTime');
+  if (el) {
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+    function update() {
+      var d = new Date();
+      el.textContent = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+    }
+    update();
+    setInterval(update, 1000);
+  }
+})();
+</script>
+</body>
+</html>
