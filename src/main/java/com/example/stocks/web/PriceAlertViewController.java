@@ -529,7 +529,6 @@ public class PriceAlertViewController {
         model.addAttribute("triggerLogResetToTodayExtra",
                 buildTriggerLogQueryExtra(Optional.empty(), backNav.fromParam(), false, Optional.of(todaySeoul)));
         model.addAttribute("suggestUrl", appProperties.publicPriceAlertLogPath() + "/suggest");
-        model.addAttribute("publicPriceAlertMemoLogNewPath", appProperties.publicPriceAlertMemoLogNewPath());
         model.addAttribute("triggerLogMainListHref", backNav.href());
         model.addAttribute("triggerLogFromParam", backNav.fromParam());
         return "price-alerts/trigger-log";
