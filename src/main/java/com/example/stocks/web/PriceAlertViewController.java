@@ -210,7 +210,6 @@ public class PriceAlertViewController {
                 hyonyDay.orElse(null), hyonyRows));
         model.addAttribute("triggerLogHref", appProperties.publicPriceAlertLogPath());
         model.addAttribute("slugListHref", "/" + appProperties.normalizedPriceAlertPublicSlug() + "/list");
-        model.addAttribute("publicPriceAlertListPath", appProperties.publicPriceAlertListPath());
         return "price-alerts/log-new";
     }
 
@@ -464,10 +463,8 @@ public class PriceAlertViewController {
                 && searchFilter.isEmpty() && registeredSeoulDay.isEmpty() && !searchRejected);
 
         if (readOnly) {
-            model.addAttribute("publicPriceAlertListPath", appProperties.publicPriceAlertListPath());
             model.addAttribute("publicPriceAlertListSlugHref", appProperties.publicPriceAlertListSlugHref());
             model.addAttribute("publicPriceAlertLogPath", appProperties.publicPriceAlertLogPath());
-            model.addAttribute("publicPriceAlertMemoLogNewPath", appProperties.publicPriceAlertMemoLogNewPath());
         }
         return listViewName;
     }
