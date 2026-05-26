@@ -14,7 +14,7 @@ import java.util.Map;
 
 /**
  * {@code app.allowed-user-emails} 가 비어 있지 않을 때, 카카오 OAuth2 로그인 사용자의 이메일이
- * 목록에 없으면 접근을 거부합니다. {@code /private/{slug}/list}·{@code /{slug}}·{@code /{slug}/list}·{@code /{slug}/log}·로그인·로그아웃·헬스 등은 제외합니다.
+ * 목록에 없으면 접근을 거부합니다. {@code /private/{slug}/list}·{@code /{slug}}·{@code /{slug}/log}·로그인·로그아웃·헬스 등은 제외합니다.
  */
 public class AllowedAppUserEmailFilter extends OncePerRequestFilter {
 
@@ -54,7 +54,8 @@ public class AllowedAppUserEmailFilter extends OncePerRequestFilter {
             return true;
         }
         String path = ChartboyPublicAccess.normalizedDispatchPath(request);
-        if ("/".equals(path) || "/index".equals(path) || "/health".equals(path) || "/favicon.png".equals(path)) {
+        if ("/".equals(path) || "/index".equals(path) || "/health".equals(path)
+                || "/favicon.png".equals(path) || "/chartboy-logo.webp".equals(path)) {
             return true;
         }
         if (path.startsWith("/oauth2/") || path.startsWith("/login/oauth2/")) {

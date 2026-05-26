@@ -25,6 +25,9 @@ public class PriceAlertLogDto {
 
     private String label;
 
+    /** 서울 달력일(YYYY-MM-DD). 컬럼 미도입 DB 에서는 null. */
+    private String seoulLogDate;
+
     private String createdAt;
 
     public Long getId() {
@@ -93,6 +96,15 @@ public class PriceAlertLogDto {
 
     public void setLabel(String label) {
         this.label = label;
+    }
+
+    @JsonProperty("seoul_log_date")
+    public String getSeoulLogDate() {
+        return seoulLogDate;
+    }
+
+    public void setSeoulLogDate(String seoulLogDate) {
+        this.seoulLogDate = seoulLogDate;
     }
 
     @JsonProperty("created_at")

@@ -29,7 +29,7 @@ final class PriceAlertLogMarkdownComposer {
         LinkedHashMap<String, List<PriceAlertLogDto>> byCode = bucketByStockCodeInsertionOrder(sortedByIdAscending);
 
         StringBuilder sb = new StringBuilder();
-        sb.append("✅ 차트보이 영상 요약").append('\n');
+        sb.append("✅ 매수타점 체크").append('\n');
 
         for (List<PriceAlertLogDto> group : byCode.values()) {
             group.sort(Comparator.comparing(PriceAlertLogDto::getId));
@@ -43,18 +43,35 @@ final class PriceAlertLogMarkdownComposer {
             String sym = displaySymbol(group);
 
             if (!above.isEmpty()) {
-                above = new ArrayList<>(above);
-                above.sort(Comparator.comparing(r -> nz(r.getTargetPrice())));
-                String merged = above.stream()
-                        .map(r -> formatWonDotThousands(nz(r.getTargetPrice())) + "원")
-                        .collect(Collectors.joining("/"));
-                sb.append("✔️").append(sym).append(' ').append(merged).append(" 돌파시").append('\n');
+                List<PriceAlertLogDto> priced = above.stream()
+                        .filter(r -> r.getTargetPrice() != null)
+                        .toList();
+                List<PriceAlertLogDto> priceMissing = above.stream()
+                        .filter(r -> r.getTargetPrice() == null)
+                        .toList();
+                if (!priced.isEmpty()) {
+                    List<PriceAlertLogDto> sortedPriced = new ArrayList<>(priced);
+                    sortedPriced.sort(Comparator.comparing(PriceAlertLogDto::getTargetPrice));
+                    String merged = sortedPriced.stream()
+                            .map(r -> formatWonDotThousands(r.getTargetPrice()) + "원")
+                            .collect(Collectors.joining("/"));
+                    sb.append("✔️ ").append(sym).append(' ').append(merged).append(" 돌파시").append('\n');
+                }
+                for (PriceAlertLogDto r : priceMissing) {
+                    sb.append("✔️ ").append(sym).append(' ')
+                            .append(memoLine(r))
+                            .append(" 돌파시")
+                            .append('\n');
+                }
             }
             for (PriceAlertLogDto r : below) {
-                sb.append("✔️").append(sym).append(' ')
-                        .append(formatWonDotThousands(nz(r.getTargetPrice()))).append("원")
-                        .append(" 손절·이탈 시")
-                        .append('\n');
+                sb.append("✔️ ").append(sym).append(' ');
+                if (r.getTargetPrice() != null) {
+                    sb.append(formatWonDotThousands(r.getTargetPrice())).append("원");
+                } else {
+                    sb.append(memoLine(r));
+                }
+                sb.append(" 손절·이탈 시").append('\n');
             }
         }
 
@@ -67,7 +84,7 @@ final class PriceAlertLogMarkdownComposer {
         if (batchSeoulDay != null) {
             DayOfWeek dow = batchSeoulDay.getDayOfWeek();
             String shortDow = dow.getDisplayName(TextStyle.SHORT, Locale.KOREAN);
-            sb.append("🌈")
+            sb.append("🌈 ")
                     .append(batchSeoulDay.getMonthValue())
                     .append("월 ")
                     .append(batchSeoulDay.getDayOfMonth())
@@ -104,11 +121,26 @@ final class PriceAlertLogMarkdownComposer {
             return fromLabel;
         }
         String cond = fallback.getCondition() != null ? fallback.getCondition().trim().toUpperCase(Locale.ROOT) : "ABOVE";
-        String memo = formatWonCommaThousands(nz(fallback.getTargetPrice())) + "원";
+        if (fallback.getTargetPrice() == null) {
+            return "가격 미기재";
+        }
+        String memo = formatWonCommaThousands(fallback.getTargetPrice()) + "원";
         if ("BELOW".equals(cond)) {
             memo += " 손절라인";
         }
         return memo;
+    }
+
+    /** ✔ 요약 줄: 가격 없을 때 슬래시 라벨 뒤 또는 고정 문구. */
+    private static String memoLine(PriceAlertLogDto r) {
+        String fromLabel = slashSuffix(r.getLabel());
+        if (!fromLabel.isBlank()) {
+            return fromLabel;
+        }
+        if (r.getTargetPrice() == null) {
+            return "가격 미기재";
+        }
+        return formatWonDotThousands(r.getTargetPrice()) + "원";
     }
 
     private static LinkedHashMap<String, List<PriceAlertLogDto>> bucketByStockCodeInsertionOrder(List<PriceAlertLogDto> rows) {
@@ -212,9 +244,5 @@ final class PriceAlertLogMarkdownComposer {
         while (sb.length() > 0 && sb.charAt(sb.length() - 1) == '\n') {
             sb.setLength(sb.length() - 1);
         }
-    }
-
-    private static BigDecimal nz(BigDecimal bd) {
-        return bd != null ? bd : BigDecimal.ZERO;
     }
 }

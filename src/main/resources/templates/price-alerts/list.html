@@ -134,8 +134,8 @@
                     <span th:if="${a.condition == 'BELOW'}" class="text-rose-700 font-medium text-xs">≤ BELOW</span>
                     <span th:if="${a.condition != 'ABOVE' and a.condition != 'BELOW'}" th:text="${a.condition}" class="text-slate-600 text-xs">-</span>
                 </td>
-                <td class="px-3 sm:px-4 py-2.5 text-slate-600 whitespace-nowrap align-top"
-                    th:text="${a.label}">-</td>
+                <td class="px-3 sm:px-4 py-2.5 text-slate-700 align-top whitespace-pre-wrap break-words max-w-[28rem]"
+                    th:text="${a.label != null and !#strings.isEmpty(a.label)} ? ${a.label} : '-'">-</td>
                 <td th:unless="${readOnly}" class="px-3 sm:px-4 py-2.5 text-center text-xs" th:text="${a.isActive != null and a.isActive} ? 'O' : 'X'">O</td>
                 <td th:unless="${readOnly}" class="hidden md:table-cell px-3 sm:px-4 py-2.5 text-slate-500 text-xs whitespace-nowrap font-mono"
                     th:text="${a.triggeredAt != null && #strings.length(a.triggeredAt) >= 10 ? #strings.substring(a.triggeredAt, 0, 10) : (a.triggeredAt != null && !#strings.isEmpty(#strings.trim(a.triggeredAt)) ? a.triggeredAt : '-')}">-</td>

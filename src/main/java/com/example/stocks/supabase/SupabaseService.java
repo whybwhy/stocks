@@ -89,7 +89,7 @@ public class SupabaseService {
     private static final String PRICE_ALERT_TRIGGER_SELECT_COLUMNS =
             "id,alert_id,market,stock_code,symbol,target_price,condition,trigger_price,label,source,triggered_at";
     private static final String PRICE_ALERT_LOG_SELECT_COLUMNS =
-            "id,posted_by,market,stock_code,symbol,target_price,condition,label,created_at";
+            "id,posted_by,market,stock_code,symbol,target_price,condition,label,seoul_log_date,created_at";
 
     /**
      * price_alerts 목록 (id 내림차순). source가 null/blank/ALL 이면 전체.
@@ -189,7 +189,7 @@ public class SupabaseService {
     }
 
     /**
-     * {@code price_alerts_log} 에서 {@code posted_by} 가 일치하는 행 중 최신 {@code created_at} 의 서울 달력 날짜.
+     * {@code price_alerts_log} 에서 {@code posted_by} 가 일치하는 행 중 최신 {@code seoul_log_date}(없으면 {@code created_at}) 기준 배치 서울 달력일.
      */
     public Optional<LocalDate> getLatestPriceAlertLogSeoulDay(String postedBy) {
         if (postedBy == null || postedBy.isBlank()) {
@@ -202,19 +202,31 @@ public class SupabaseService {
         ResponseEntity<List<PriceAlertLogDto>> response = supabaseRestClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/rest/v1/" + PRICE_ALERT_LOG_TABLE)
-                        .queryParam("select", "created_at")
+                        .queryParam("select", "seoul_log_date,created_at")
                         .queryParam("posted_by", "eq." + pbNorm)
-                        .queryParam("order", "created_at.desc")
+                        .queryParam("order", "seoul_log_date.desc,created_at.desc")
                         .queryParam("limit", "1")
                         .build())
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
                 .toEntity(new ParameterizedTypeReference<List<PriceAlertLogDto>>() {});
         List<PriceAlertLogDto> body = response.getBody();
-        if (body == null || body.isEmpty() || body.getFirst().getCreatedAt() == null) {
+        if (body == null || body.isEmpty()) {
             return Optional.empty();
         }
-        return Optional.ofNullable(parseCreatedAtToSeoulDate(body.getFirst().getCreatedAt()));
+        PriceAlertLogDto row = body.getFirst();
+        String seoul = row.getSeoulLogDate();
+        if (seoul != null && !seoul.isBlank()) {
+            try {
+                return Optional.of(LocalDate.parse(seoul.trim().substring(0, Math.min(10, seoul.length()))));
+            } catch (DateTimeParseException ignored) {
+                // fall through to created_at
+            }
+        }
+        if (row.getCreatedAt() == null) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(parseCreatedAtToSeoulDate(row.getCreatedAt()));
     }
 
     /** {@code posted_by}·서울 달력일에 해당하는 원장 행 전부(최대 5000, id 오름차순). */
@@ -232,9 +244,9 @@ public class SupabaseService {
                             .path("/rest/v1/" + PRICE_ALERT_LOG_TABLE)
                             .queryParam("select", PRICE_ALERT_LOG_SELECT_COLUMNS)
                             .queryParam("posted_by", "eq." + pbNorm)
+                            .queryParam("seoul_log_date", "eq." + day)
                             .queryParam("order", "id.asc")
                             .queryParam("limit", "5000");
-                    appendTimestampBetweenSeoulDay(uriBuilder, "created_at", day);
                     return uriBuilder.build();
                 })
                 .accept(MediaType.APPLICATION_JSON)

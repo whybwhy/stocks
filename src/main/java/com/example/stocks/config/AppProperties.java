@@ -18,7 +18,7 @@ import java.util.Locale;
 public class AppProperties {
 
     /**
-     * 공개 price_alerts 목록·돌파 로그 경로 ({@code /private/{slug}/list}, {@code /{slug}}, {@code /{slug}/list}, {@code /{slug}/log}).
+     * 공개 price_alerts 목록·돌파 로그 경로 ({@code /private/{slug}/list}, {@code /{slug}}, {@code /{slug}/log}).
      * 슬래시 없이 영문·숫자만 (예: {@code chartboy}, {@code x7k9m2}).
      */
     private String priceAlertPublicSlug = "chartboy";
@@ -83,9 +83,9 @@ public class AppProperties {
         return "/" + normalizedPriceAlertPublicSlug() + "/log";
     }
 
-    /** 메모 원장(차트보이·효니효니 최신 적재일) 보기 경로 ({@code /{slug}/log/new}). */
+    /** 메모 원장(차트보이·효니효니 최신 적재일) 보기 경로 ({@code /{slug}/new}). */
     public String publicPriceAlertMemoLogNewPath() {
-        return "/" + normalizedPriceAlertPublicSlug() + "/log/new";
+        return "/" + normalizedPriceAlertPublicSlug() + "/new";
     }
 
     /**
