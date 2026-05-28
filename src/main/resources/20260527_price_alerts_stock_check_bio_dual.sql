@@ -5,6 +5,7 @@
 -- ※ label: 이모지 제거 · 해당 종목 매수타점·목표가·차트 맥락만(매도규칙만·영상안내·잔소리 제외)
 --
 -- 【선행】Supabase: price_alerts_log_seoul_daily_upsert_20260527.sql
+--         price_alerts_log_kst_created_at_20260528.sql (created_at · seoul_log_date = price_alerts KST 규격)
 --
 -- 【종목 코드】레포·FnGuide·네이버·조선비즈:
 --   삼성에스디에스 018260, LG씨엔에스 064400, 라온로보틱스 232680, 현대오토에버 307950,
@@ -13,7 +14,7 @@
 --
 -- 【미포함】자동차 관련주(영상만), 아모텍·켄코아·LG이노텍(매도규칙만), SFA·한국공항(타점 없음)
 --
--- 공개 확인: stocks-ser4.onrender.com/k7m2n9p4tr/new
+-- 공개 확인: stocks-ser4.onrender.com/fuawi37szp/new  (slug 는 application.yml 과 동일)
 
 -- ============================================================================
 -- 1) public.price_alerts — 멱등

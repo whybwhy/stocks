@@ -82,7 +82,7 @@ argument-hint: "[종목·가격 블록] 선택: 끝에 «갱신해줘» 있으�
 
 ### 2) `public.price_alerts_log`
 
-- `INSERT … VALUES` 다중 행. **`created_at` 없음**.
+- `INSERT … VALUES` 다중 행. **`created_at`·`seoul_log_date` 모두 생략**( `price_alerts` 의 `created_at` 과 같음 — DB 기본값·트리거가 KST로 채움). **예외**: 과거 배치일로 묶고 싶을 때만 `seoul_log_date = DATE 'YYYY-MM-DD'` 명시. 선행: `price_alerts_log_seoul_daily_upsert_20260527.sql`, `price_alerts_log_kst_created_at_20260528.sql`.
 - 각 행 `posted_by` 는 `CHARTBOY` 또는 `HYONYHYONY`.
 - 레거시 DDL: **`WHERE NOT EXISTS` 안 씀**(로그만 적층).
 - `uq_price_alerts_log_day_tp` 등 마이그레이션 적용 DB에서는 프로젝트의 **`INSERT … ON CONFLICT … DO UPDATE`** 패턴 허용(`price_alerts_log_seoul_daily_upsert_*.sql` 선행 문서 참고).

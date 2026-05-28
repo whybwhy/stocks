@@ -30,14 +30,14 @@ CREATE TABLE IF NOT EXISTS public.price_alerts_log (
     target_price numeric(18, 2),
     condition text NOT NULL DEFAULT 'ABOVE',
     label text,
-    seoul_log_date date NOT NULL DEFAULT ((timezone('Asia/Seoul', now())))::date,
+    seoul_log_date date NOT NULL DEFAULT ((now() AT TIME ZONE 'Asia/Seoul')::date),
     target_price_bucket numeric(18, 2) GENERATED ALWAYS AS (
       COALESCE(
         target_price,
         CAST('-9172836540918273.54' AS numeric(18, 2))
       )
     ) STORED,
-    created_at timestamptz NOT NULL DEFAULT now(),
+    created_at timestamptz NOT NULL DEFAULT (now() AT TIME ZONE 'Asia/Seoul'),
 
     CONSTRAINT price_alerts_log_posted_by_check
       CHECK (posted_by IN ('CHARTBOY', 'HYONYHYONY')),
@@ -85,17 +85,18 @@ COMMENT ON COLUMN public.price_alerts_log.condition IS 'ABOVE 도달·BELOW 이�
 
 COMMENT ON COLUMN public.price_alerts_log.label IS '원문 줄·메모 요약 블록(검색·표시용)';
 
-COMMENT ON COLUMN public.price_alerts_log.created_at IS '저장 시각(서버 now(), 앱에서는 일반적으로 생략)';
+COMMENT ON COLUMN public.price_alerts_log.created_at IS
+  '저장 시각(price_alerts 와 동일: now() AT TIME ZONE Asia/Seoul)';
 
 CREATE OR REPLACE FUNCTION public.price_alerts_log_sync_seoul_log_date()
 RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
   IF NEW.created_at IS NULL THEN
-    NEW.created_at := now();
+    NEW.created_at := (now() AT TIME ZONE 'Asia/Seoul');
   END IF;
-  IF TG_OP = 'INSERT' AND NEW.seoul_log_date IS NULL THEN
-    NEW.seoul_log_date := (timezone('Asia/Seoul', NEW.created_at))::date;
+  IF NEW.seoul_log_date IS NULL THEN
+    NEW.seoul_log_date := (NEW.created_at AT TIME ZONE 'UTC')::date;
   END IF;
   RETURN NEW;
 END;

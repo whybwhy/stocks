@@ -6,6 +6,7 @@
 --
 -- ⚠ 실행 전 백업 권장. 기존 중복 행은 아래 DELETE 로 id 작은 행만 남김 후 제약 추가.
 -- Supabase Postgres 14+ 에서 테스트됨(trigger: EXECUTE FUNCTION).
+-- created_at KST 표시(price_alerts 와 동일): price_alerts_log_kst_created_at_20260528.sql 추가 실행.
 --
 -- ─── 1) 목표가 NULL 허용(가격 없이 라벨·종목 등만 적재 가능) ───
 ALTER TABLE public.price_alerts_log

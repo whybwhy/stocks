@@ -14,7 +14,7 @@ alwaysApply: false
 - **`label` 텍스트 보존·이모지 제거 (두 테이블 공통)**: 사용자가 보낸 텍스트는 **요약/축약/재구성 없이 그대로** 넣되, **이모지(✅·✔·▶·🌈·☀️·❤️ 등)와 변형 선택자는 모두 제거**한다. SQL 따옴표만 `''` 로 이스케이프.
 - **`label` 종목 관련만**: 해당 `symbol` 의 **매수타점·목표가·돌파가·차트 맥락**이 아닌 줄(매도 규칙만, 영상 안내, 시장 잔소리, 블록 서두 등)은 **INSERT·UPSERT 모두 하지 않음**. `target_price NULL` 이라도 타점 설명 없으면 제외. UPSERT는 종목 관련 라벨 행만 `label = EXCLUDED.label` (`.cursor/commands/dd.md` 참고).
 - 종목 매핑: **①** `src/main/resources` 의 `*price_alert*.sql` 등에서 종목표시코드 검색 → **②** 없으면 **웹 검색 등으로**(네이버·FnGuide·KRX 등) 같은 이름의 확정 종목만 코드 확보 → **③** 유사종목 치환 금지(**④** 내·외부 모두로도 확정 불가할 때만 **`### 미확정·미매칭 종목`**).
-- DDL·마이그레이션: `price_alerts_log.sql`(신규), 기존 DB는 `price_alerts_log_seoul_daily_upsert_*.sql`·`price_alerts_log_migrate_posted_by.sql`.
+- DDL·마이그레이션: `price_alerts_log.sql`(신규), 기존 DB는 `price_alerts_log_seoul_daily_upsert_*.sql`·`price_alerts_log_kst_created_at_20260528.sql`(created_at = `price_alerts` KST)·`price_alerts_log_migrate_posted_by.sql`.
 - 공개 메모 블록 뷰(원장 `price_alerts_log`·작성자별 최신 적재일): **`/{slug}/new`** (앱 라우팅 참고).
 
 - **공개 안내 블록**: SQL 생성/적재 응답 마지막에 `.cursor/commands/dd.md` 하단의 안내 블록(🔗 슬러그 URL · ⚠️ 면책 · 🔍 검색 위주 개선 · 🙏 펌 자제 요청 · 💛 마무리)을 **이모지·줄바꿈·공백 그대로** 포함한다. `{slug}` 는 `application.yml` 의 `price-alert-public-slug` 기본값으로 치환.
