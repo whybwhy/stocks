@@ -5,7 +5,7 @@
 --         price_alerts_log_seoul_daily_upsert_20260527.sql
 --       (nullable target_price·서울일 dedupe 컬럼·일 단위 UNIQUE·ON CONFLICT 사용)
 --
--- 공개 확인: stocks-ser4.onrender.com/fuawi37szp/new  (slug 는 application.yml 과 동일)
+-- 공개 확인: stocks-ser4.onrender.com/79czxsm2ye/new  (slug 는 application.yml 과 동일)
 --
 -- price_alerts : 멱등 (symbol + target_price + condition)
 -- price_alerts_log : 작성자 CHARTBOY · 같은 서울일·같은 키는 UPDATE(제약 준비된 DB만)

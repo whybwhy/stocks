@@ -14,7 +14,7 @@
 --
 -- 【미포함】자동차 관련주(영상만), 아모텍·켄코아·LG이노텍(매도규칙만), SFA·한국공항(타점 없음)
 --
--- 공개 확인: stocks-ser4.onrender.com/fuawi37szp/new  (slug 는 application.yml 과 동일)
+-- 공개 확인: stocks-ser4.onrender.com/79czxsm2ye/new  (slug 는 application.yml 과 동일)
 
 -- ============================================================================
 -- 1) public.price_alerts — 멱등

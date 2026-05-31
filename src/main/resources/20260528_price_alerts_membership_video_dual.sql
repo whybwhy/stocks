@@ -15,7 +15,7 @@
 --   LG에너지솔루션 373220, 나노팀 417010, 삼성SDI 006400, 디앤디파마텍 347850,
 --   에스엘 005850, 펩트론 087010, LG씨엔에스 064400, 라온로보틱스 232680, 현대위아 011210
 --
--- 공개 확인: stocks-ser4.onrender.com/tnglo8t0cf/new  (slug 는 application.yml 과 동일)
+-- 공개 확인: stocks-ser4.onrender.com/79czxsm2ye/new  (slug 는 application.yml 과 동일)
 --
 -- price_alerts_log.posted_by: HYONYHYONY (블록 🌈 시작)
 

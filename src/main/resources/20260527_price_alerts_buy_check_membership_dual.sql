@@ -24,7 +24,7 @@
 --     켄텍 277810, 우리로 046970, 코위버 056360, 큐에스아이 066310, ISC 095340,
 --     이수페타시스 007660, 두산퓨얼셀 336260(라벨 메모 참조용)
 --
--- 공개 확인: stocks-ser4.onrender.com/fuawi37szp/new  (slug 는 application.yml 과 동일)
+-- 공개 확인: stocks-ser4.onrender.com/79czxsm2ye/new  (slug 는 application.yml 과 동일)
 --
 -- price_alerts : 멱등 (symbol + target_price + condition) · 동일 (가격·종목·조건) 중복 1행
 -- price_alerts_log : CHARTBOY · HYONYHYONY 블록별 1행씩(작성자 다르면 별도) · 같은 서울일·키는 UPDATE
