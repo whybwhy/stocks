@@ -26,9 +26,9 @@ argument-hint: "[종목·가격 블록] 선택: 끝에 «갱신해줘» 있으�
 | 단계 | 동작 |
 |------|------|
 | **1. 미리보기** | `INSERT` 초안을 채팅에 제시한다. 전체가 길면 **요약 표 + `price_alerts`·`price_alerts_log` 핵심 `VALUES` 일부** 또는 **변경 diff** 로 보여준다. |
-| **2. 요약** | 파일명(예정), `price_alerts` 행 수, `price_alerts_log` 행 수, 멱등 SKIP 예상, `### 미확정·미매칭 종목`, slug 변경 여부를 짧게 적는다. |
+| **2. 요약** | 배치일 `YYYYMMDD`·근거, `price_alerts`·`price_alerts_log` 행 수, 멱등 SKIP 예상, `### 미확정·미매칭 종목`, slug 변경 여부를 짧게 적는다. **채팅에 「예정 파일명」「예정 경로」 표현 금지** — 파일 미저장 시 경로를 말하지 않는다. |
 | **3. 대기** | 사용자가 **파일 반영 트리거**(아래)를 보낼 때까지 **`Write`·`StrReplace`·`git mv`로 `src/main/resources/*_dual.sql`·`application.yml` 수정 금지.** |
-| **4. 파일 반영** | 트리거 수신 시 `*_dual.sql` 생성·수정. **slug 갱신** 요청이 있으면 4단계에서 **공개 slug 로테이션**도 함께 수행. 저장 경로·행 수·이전→신규 slug 를 알린다. |
+| **4. 파일 반영** | 트리거 수신 시 `src/main/resources/YYYYMMDD_price_alerts_<영문설명>_dual.sql` 를 **실제로** `Write`·수정. **slug 갱신** 요청이 있으면 4단계에서 **공개 slug 로테이션**도 함께 수행. 응답에는 **저장된 전체 경로**·행 수·이전→신규 slug 만 적는다(「예정」 금지). |
 
 ### 파일 반영 트리거 (4단계 진입)
 
@@ -39,6 +39,7 @@ argument-hint: "[종목·가격 블록] 선택: 끝에 «갱신해줘» 있으�
 | **파일반영** · **파일 반영** · `/dd 파일반영` · `/dd 수정` *(수정안 확정 후)* |
 | **저장해줘** · **파일 저장** · **SQL 파일 생성** · **확인** · **OK** |
 | **바로 저장** · **확인 없이 파일 생성** · **그대로 저장해줘** |
+| **아예 파일로** · **파일로 만들** · **예정 파일명 말고 파일 생성** · **역할 수정 … 파일로** |
 
 - **파일 반영만** — Supabase·`price_alerts` / `price_alerts_log` 실제 INSERT **하지 않음**.
 - **파일 반영 + 갱신** — 같은 메시지에 **「갱신해줘」** 등이 함께 있을 때만 DB 적재(갱신 모드).
@@ -55,8 +56,17 @@ argument-hint: "[종목·가격 블록] 선택: 끝에 «갱신해줘» 있으�
 
 1. **신규 slug 생성** — 영문 소문자·숫자 **10자** (`secrets` 등 난수, `[A-Za-z0-9]{10}`).
 2. **`src/main/resources/application.yml`** — `app.price-alert-public-slug` 의 **기본값**(`${APP_PRICE_ALERT_PUBLIC_SLUG:…}`)을 신규 slug 로 교체.
-3. **이번에 다룬 `*_dual.sql`** 상단 `공개 확인:` 주석을 `stocks-ser4.onrender.com/{slug}/new` 로 맞춤. *(선택)* 레포 내 최근 `*_dual.sql` 의 공개 확인 주석도 동일 slug 로 일괄 정리.
+3. **이번에 새로 만들거나 이번 `/dd` 로 수정·저장하는 `*_dual.sql` 한 파일만** 상단 `공개 확인:` 주석을 `stocks-ser4.onrender.com/{slug}/new` 로 넣는다. **이미 커밋·저장된 기존 `*_dual.sql` 의 `공개 확인:` 주석은 절대 수정·일괄 동기화하지 않는다** — 과거 배치 파일은 당시 slug 를 그대로 둔다.
 4. **미리보기·응답** — 이전 slug → 신규 slug, 메모 원장 URL `https://stocks-ser4.onrender.com/{slug}/new` 를 안내.
+
+**`공개 확인:` 주석 예** (파일마다 slug 가 달라도 정상 — yml·Render 현재 slug 만 최신):
+
+```sql
+-- 공개 확인: stocks-ser4.onrender.com/79czxsm2ye/new  (slug 는 application.yml 과 동일)
+-- 공개 확인: stocks-ser4.onrender.com/55lk6yvy1x/new  (slug 는 application.yml 과 동일)
+```
+
+*(위 두 줄은 서로 다른 시점에 만든 파일 예시. 「과거 파일 주석 = 과거 slug」「신규 파일 주석 = 신규 slug」이며, 기존 파일을 열어 주석만 맞추지 않는다.)*
 5. **Supabase·Render** — `APP_PRICE_ALERT_PUBLIC_SLUG` 환경변수를 쓰는 배포는 배포 후 신규 값과 yml 기본값이 **일치**하는지 사용자에게 한 줄로 알림.
 
 - slug 만 갱신(종목 블록 없음)이면 **1~4만** 수행. DB INSERT 없음.
@@ -73,7 +83,7 @@ argument-hint: "[종목·가격 블록] 선택: 끝에 «갱신해줘» 있으�
 - **`YYYYMMDD`** (우선순위):
   1. **사용자가 프롬프트에 지정한 “생성·배치 날짜”** — 예: `20260528`, `5/28`, `28일자`, `sql 날짜 20260528` 등. **8자리 `YYYYMMDD`로 정규화**해 파일 prefix에 쓴다. (연도 생략 시 **Asia/Seoul** 기준 현재 연도로 보완)
   2. **지정이 없으면** 오늘이 속한 로컬(**Asia/Seoul**) 달력 날짜 8자리.
-- 미리보기·요약(2단계)에 **채택한 `YYYYMMDD`와 근거**(지정 문구 vs 서울 오늘)를 한 줄로 적는다.
+- 미리보기·요약(2단계)에 **채택한 `YYYYMMDD`와 근거**(지정 문구 vs 서울 오늘)를 한 줄로 적는다. **파일이 아직 없을 때는 `src/main/resources/…` 경로를 채팅에 쓰지 않는다** — 4단계 저장 후에만 전체 경로를 보고한다.
 - **`_dual`** = 한 파일 안에 **`price_alerts` 멱등 블록** + **`price_alerts_log` INSERT 블록** 순서로 둘 다 포함.
 
 파일 상단 주석에 **근거가 된 사용자 원문**과, 가능하면 **파일명 배치일(`YYYYMMDD`)** 을 짧게 남긴다.  

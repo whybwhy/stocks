@@ -6,8 +6,8 @@ alwaysApply: false
 
 # 목표가 이중 적재 규격
 
-- **기본(`/dd` 만)**: SQL 초안을 **채팅에 먼저 보여주고**, **파일 반영 트리거**(파일반영·저장해줘 등, `.cursor/commands/dd.md` 참고) 후에만 `*_dual.sql` 저장.**Supabase/DB 실제 INSERT 금지.** 트리거 전 `Write`/`StrReplace`로 SQL·yml 저장 금지.
-- **slug 갱신**: **「slug 갱신」** 등 요청 시(파일 반영과 동시 가능) `application.yml` 기본 slug 10자 난수 로테이션 + 해당·최근 `*_dual.sql` 의 `공개 확인:` 주석 동기화(`.cursor/commands/dd.md` 「slug 갱신 트리거」).
+- **기본(`/dd` 만)**: SQL 초안을 **채팅에 먼저 보여주고**, **파일 반영 트리거**(파일반영·저장해줘·아예 파일로 등, `.cursor/commands/dd.md` 참고) 후에만 `*_dual.sql` 저장.**Supabase/DB 실제 INSERT 금지.** 트리거 전 `Write`/`StrReplace`로 SQL·yml 저장 금지. 미저장 시 채팅에 **「예정 파일명」·경로 표기 금지** — 저장 후 전체 경로만 보고.
+- **slug 갱신**: **「slug 갱신」** 등 요청 시(파일 반영과 동시 가능) `application.yml` 기본 slug 10자 난수 로테이션 + **이번에 새로 저장하는 `*_dual.sql` 한 파일만** `공개 확인:` 주석 반영. **기존 `*_dual.sql` 의 `공개 확인:` 주석은 수정·일괄 동기화 금지**(`.cursor/commands/dd.md` 「slug 갱신 트리거」).
 - **`갱신해줘` 등 명시 시**: 해당 `*_dual.sql` 내용대로 **`price_alerts`**(멱등)·**`price_alerts_log`** 실제 적재.
 - **파일 이름**: `src/main/resources/YYYYMMDD_price_alerts_<설명>_dual.sql` — **`YYYYMMDD`는 프롬프트에 사용자가 지정한 생성·배치일을 우선**(8자리 정규화); 미지정 시 **Asia/Seoul 오늘**. (DB `seoul_log_date`와 무관 — `.cursor/commands/dd.md` 「출력 파일 이름」)
 - **`price_alerts`**: `created_at` 생략, `source = 'CHARTBOY'` 고정. 멱등은 `symbol` + `target_price` + `condition`.
