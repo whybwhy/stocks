@@ -6,14 +6,14 @@ alwaysApply: false
 
 # 목표가 이중 적재 규격
 
-- **기본(`/dd` 만)**: SQL 초안을 **채팅에 먼저 보여주고**, **파일 반영 트리거**(파일반영·저장해줘·아예 파일로 등, `.cursor/commands/dd.md` 참고) 후에만 `*_dual.sql` 저장.**Supabase/DB 실제 INSERT 금지.** 트리거 전 `Write`/`StrReplace`로 SQL·yml 저장 금지. 미저장 시 채팅에 **「예정 파일명」·경로 표기 금지** — 저장 후 전체 경로만 보고.
+- **기본(`/dd` 만)**: SQL 초안을 **채팅에 먼저 보여주고**, **파일 반영 트리거** 후에만 `*_dual.sql` 저장. **예외**: **「미리보기 없이」「바로 파일생성」** 등이 있으면 **미리보기·대기 생략** 후 즉시 저장(`.cursor/commands/dd.md`). **Supabase/DB INSERT 금지**(「갱신해줘」 제외). 미저장 시 **「예정 파일명」·경로 표기 금지**.
 - **slug 갱신**: **「slug 갱신」** 등 요청 시(파일 반영과 동시 가능) `application.yml` 기본 slug 10자 난수 로테이션 + **이번에 새로 저장하는 `*_dual.sql` 한 파일만** `공개 확인:` 주석 반영. **기존 `*_dual.sql` 의 `공개 확인:` 주석은 수정·일괄 동기화 금지**(`.cursor/commands/dd.md` 「slug 갱신 트리거」).
 - **`갱신해줘` 등 명시 시**: 해당 `*_dual.sql` 내용대로 **`price_alerts`**(멱등)·**`price_alerts_log`** 실제 적재.
 - **파일 이름**: `src/main/resources/YYYYMMDD_price_alerts_<설명>_dual.sql` — **`YYYYMMDD`는 프롬프트에 사용자가 지정한 생성·배치일을 우선**(8자리 정규화); 미지정 시 **Asia/Seoul 오늘**. (DB `seoul_log_date`와 무관 — `.cursor/commands/dd.md` 「출력 파일 이름」)
 - **`price_alerts`**: `created_at` 생략, `source = 'CHARTBOY'` 고정. 멱등은 `symbol` + `target_price` + `condition`.
-- **`price_alerts_log`**: `posted_by ∈ ('CHARTBOY','HYONYHYONY')` 만. 줄이 **✔/✔️** 로 시작하면 `CHARTBOY`, 블록이 **🌈** 로 시작하면 `HYONYHYONY`. `target_price` 는 NULL 허용(마이그레이션 적용 후). 같은 **서울일·키** 재적재는 **`INSERT … ON CONFLICT … DO UPDATE`**(`uq_price_alerts_log_day_tp`, `price_alerts_log_seoul_daily_upsert_*.sql`).
+- **`price_alerts_log`**: `posted_by ∈ ('CHARTBOY','HYONYHYONY')` 만. **✔/✔️** 또는 일일 메모의 **✅·▶·📌** 종목·지수·환율 줄 → `CHARTBOY`; **🌈** 블록 → `HYONYHYONY`. **`target_price` NULL 허용** — 숫자 없어도 **차트·매매 맥락**(월봉 양봉 매수법, 총쏘, 5일선, 지수 이평 안내 등)이 있으면 **log 만** INSERT. **`price_alerts` 는 숫자 목표가 있는 종목만**(NULL 알람 없음). 같은 **서울일·키** 재적재는 **`INSERT … ON CONFLICT … DO UPDATE`**(`uq_price_alerts_log_day_tp`, `price_alerts_log_seoul_daily_upsert_*.sql`). NULL 은 **stock_code·posted_by·서울일** 당 1건.
 - **`label` 텍스트 보존·이모지 제거 (두 테이블 공통)**: 사용자가 보낸 텍스트는 **요약/축약/재구성 없이 그대로** 넣되, **이모지(✅·✔·▶·🌈·☀️·❤️ 등)와 변형 선택자는 모두 제거**한다. SQL 따옴표만 `''` 로 이스케이프.
-- **`label` 종목 관련만**: 해당 `symbol` 의 **매수타점·목표가·돌파가·차트 맥락**이 아닌 줄(매도 규칙만, 영상 안내, 시장 잔소리, 블록 서두 등)은 **INSERT·UPSERT 모두 하지 않음**. `target_price NULL` 이라도 타점 설명 없으면 제외. UPSERT는 종목 관련 라벨 행만 `label = EXCLUDED.label` (`.cursor/commands/dd.md` 참고).
+- **`label` 종목 관련만**: `price_alerts` — **구체 목표가·돌파가** 없으면 제외. `price_alerts_log` — **맥락-only NULL** 허용(위). 공통 제외: 매도 규칙만, 무관 잔소리, 블록 서두. UPSERT는 종목·지수·환율 관련 라벨만 `label = EXCLUDED.label` (`.cursor/commands/dd.md` 참고).
 - 종목 매핑: **①** `src/main/resources` 의 `*price_alert*.sql` 등에서 종목표시코드 검색 → **②** 없으면 **웹 검색 등으로**(네이버·FnGuide·KRX 등) 같은 이름의 확정 종목만 코드 확보 → **③** 유사종목 치환 금지(**④** 내·외부 모두로도 확정 불가할 때만 **`### 미확정·미매칭 종목`**).
 - DDL·마이그레이션: `price_alerts_log.sql`(신규), 기존 DB는 `price_alerts_log_seoul_daily_upsert_*.sql`·`price_alerts_log_kst_created_at_20260528.sql`(created_at = `price_alerts` KST)·`price_alerts_log_migrate_posted_by.sql`.
 - 공개 메모 블록 뷰(원장 `price_alerts_log`·작성자별 최신 적재일): **`/{slug}/new`** (앱 라우팅 참고).
