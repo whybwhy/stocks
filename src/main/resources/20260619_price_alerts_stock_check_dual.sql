@@ -3,7 +3,7 @@
 -- 【종목 코드】104830 원익머트리얼즈, 034020 두산에너빌리티, 475480 SK이터닉스, 080220 제주반도체
 -- 【제외】코스닥 일반 원칙(20·5일선 크로스·구름대·후행스팬) · 이엔에프/한솔케미칼(비교 코멘트만)
 --
--- 공개 확인: stocks-ser4.onrender.com/171mggruf7/new  (slug 는 application.yml 과 동일)
+-- 공개 확인: stocks-ser4.onrender.com/pf2jd1qs2y/new  (slug 는 application.yml 과 동일)
 
 -- ============================================================================
 -- 1) public.price_alerts — 멱등 · 1행
