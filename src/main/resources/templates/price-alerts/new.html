@@ -53,8 +53,8 @@
             <span class="text-xs text-slate-400" th:if="${chartboyBatchDate == null}">데이터 없음</span>
         </div>
         <div class="p-3 sm:p-4">
-            <pre class="rounded-lg bg-slate-50 text-slate-800 text-sm sm:text-base leading-relaxed px-4 py-3 overflow-x-auto font-mono whitespace-pre-wrap border border-slate-200"
-                 th:text="${chartboyMarkdown}"></pre>
+            <div class="rounded-lg bg-slate-50 text-slate-800 text-sm sm:text-base leading-relaxed px-4 py-3 overflow-x-auto font-mono whitespace-pre-wrap border border-slate-200"
+                 th:utext="${chartboyHtml}"></div>
         </div>
     </section>
 
@@ -66,8 +66,8 @@
             <span class="text-xs text-slate-400" th:if="${hyonyBatchDate == null}">데이터 없음</span>
         </div>
         <div class="p-3 sm:p-4">
-            <pre class="rounded-lg bg-slate-50 text-slate-800 text-sm sm:text-base leading-relaxed px-4 py-3 overflow-x-auto font-mono whitespace-pre-wrap border border-slate-200"
-                 th:text="${hyonyMarkdown}"></pre>
+            <div class="rounded-lg bg-slate-50 text-slate-800 text-sm sm:text-base leading-relaxed px-4 py-3 overflow-x-auto font-mono whitespace-pre-wrap border border-slate-200"
+                 th:utext="${hyonyHtml}"></div>
         </div>
     </section>
 

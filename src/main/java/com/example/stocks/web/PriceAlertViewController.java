@@ -177,14 +177,15 @@ public class PriceAlertViewController {
                 .map(d -> supabaseService.getPriceAlertLogsOnSeoulDay(hyonyKey, d))
                 .orElse(List.of());
 
+        String slugListHref = appProperties.publicPriceAlertListSlugHref();
         model.addAttribute("today", todaySeoul);
         model.addAttribute("chartboyBatchDate", chartboyDay.map(LocalDate::toString).orElse(null));
         model.addAttribute("hyonyBatchDate", hyonyDay.map(LocalDate::toString).orElse(null));
-        model.addAttribute("chartboyMarkdown", PriceAlertLogMarkdownComposer.composeChartboyMarkdown(chartboyRows));
-        model.addAttribute("hyonyMarkdown", PriceAlertLogMarkdownComposer.composeHyonyMarkdown(
-                hyonyDay.orElse(null), hyonyRows));
+        model.addAttribute("chartboyHtml", PriceAlertLogMarkdownComposer.composeChartboyHtml(chartboyRows, slugListHref));
+        model.addAttribute("hyonyHtml", PriceAlertLogMarkdownComposer.composeHyonyHtml(
+                hyonyDay.orElse(null), hyonyRows, slugListHref));
         model.addAttribute("triggerLogHref", appProperties.publicPriceAlertLogPath());
-        model.addAttribute("slugListHref", appProperties.publicPriceAlertListSlugHref());
+        model.addAttribute("slugListHref", slugListHref);
         return "price-alerts/new";
     }
 

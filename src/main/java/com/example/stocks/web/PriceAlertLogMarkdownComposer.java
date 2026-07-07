@@ -1,9 +1,12 @@
 package com.example.stocks.web;
 
 import com.example.stocks.alert.PriceAlertLogDto;
+import org.springframework.web.util.HtmlUtils;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.TextStyle;
@@ -12,6 +15,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -23,6 +27,17 @@ final class PriceAlertLogMarkdownComposer {
     }
 
     static String composeChartboyMarkdown(List<PriceAlertLogDto> sortedByIdAscending) {
+        return composeChartboy(sortedByIdAscending, null);
+    }
+
+    static String composeChartboyHtml(List<PriceAlertLogDto> sortedByIdAscending, String slugListHref) {
+        return composeChartboy(sortedByIdAscending, slugListHref);
+    }
+
+    private static String composeChartboy(List<PriceAlertLogDto> sortedByIdAscending, String slugListHref) {
+        Function<String, String> symbolFmt = slugListHref != null && !slugListHref.isBlank()
+                ? sym -> linkedSymbol(sym, slugListHref)
+                : Function.identity();
         if (sortedByIdAscending == null || sortedByIdAscending.isEmpty()) {
             return "(해당 작성자 최신 적재일에 행이 없습니다.)";
         }
@@ -55,17 +70,17 @@ final class PriceAlertLogMarkdownComposer {
                     String merged = sortedPriced.stream()
                             .map(r -> formatWonDotThousands(r.getTargetPrice()) + "원")
                             .collect(Collectors.joining("/"));
-                    sb.append("✔️ ").append(sym).append(' ').append(merged).append(" 돌파시").append('\n');
+                    sb.append("✔️ ").append(symbolFmt.apply(sym)).append(' ').append(merged).append(" 돌파시").append('\n');
                 }
                 for (PriceAlertLogDto r : priceMissing) {
-                    sb.append("✔️ ").append(sym).append(' ')
+                    sb.append("✔️ ").append(symbolFmt.apply(sym)).append(' ')
                             .append(memoLine(r))
                             .append(" 돌파시")
                             .append('\n');
                 }
             }
             for (PriceAlertLogDto r : below) {
-                sb.append("✔️ ").append(sym).append(' ');
+                sb.append("✔️ ").append(symbolFmt.apply(sym)).append(' ');
                 if (r.getTargetPrice() != null) {
                     sb.append(formatWonDotThousands(r.getTargetPrice())).append("원");
                 } else {
@@ -80,6 +95,17 @@ final class PriceAlertLogMarkdownComposer {
     }
 
     static String composeHyonyMarkdown(LocalDate batchSeoulDay, List<PriceAlertLogDto> sortedByIdAscending) {
+        return composeHyony(batchSeoulDay, sortedByIdAscending, null);
+    }
+
+    static String composeHyonyHtml(LocalDate batchSeoulDay, List<PriceAlertLogDto> sortedByIdAscending, String slugListHref) {
+        return composeHyony(batchSeoulDay, sortedByIdAscending, slugListHref);
+    }
+
+    private static String composeHyony(LocalDate batchSeoulDay, List<PriceAlertLogDto> sortedByIdAscending, String slugListHref) {
+        Function<String, String> symbolFmt = slugListHref != null && !slugListHref.isBlank()
+                ? sym -> linkedSymbol(sym, slugListHref)
+                : Function.identity();
         StringBuilder sb = new StringBuilder();
         if (batchSeoulDay != null) {
             DayOfWeek dow = batchSeoulDay.getDayOfWeek();
@@ -107,11 +133,22 @@ final class PriceAlertLogMarkdownComposer {
                     .map(r -> memoFragment(r.getLabel(), r))
                     .filter(s -> !s.isBlank())
                     .collect(Collectors.joining("/"));
-            sb.append(sym).append(" (").append(inner).append(')').append('\n');
+            sb.append(symbolFmt.apply(sym)).append(" (").append(inner).append(')').append('\n');
         }
 
         trimTrailingNewline(sb);
         return sb.toString();
+    }
+
+    /** 종목명만 {@code /{slug}?size=50&q=} 검색 링크로 감쌉니다. */
+    private static String linkedSymbol(String symbol, String slugListHref) {
+        if (symbol == null || symbol.isBlank() || "?".equals(symbol)) {
+            return HtmlUtils.htmlEscape(symbol != null ? symbol : "?");
+        }
+        String trimmed = symbol.trim();
+        String href = slugListHref + "?size=50&q=" + URLEncoder.encode(trimmed, StandardCharsets.UTF_8);
+        return "<a href=\"" + href + "\" class=\"text-sky-700 underline hover:text-sky-900\">"
+                + HtmlUtils.htmlEscape(trimmed) + "</a>";
     }
 
     /** 라벨 {@code … / …} 접미부가 있으면 사용, 없으면 목표가·조건 문자열 생성. */
