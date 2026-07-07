@@ -50,7 +50,7 @@ spring:
 # Render 등: APP_ALLOWED_USER_EMAILS= (여러 명은 콤마로 구분)
 # 공개 목표가·목록: 검색 없을 때 최근 등록일만 `/{slug}`, 전체는 `/private/{slug}/list`, 돌파 `/{slug}/log`, 메모 원장 `/{slug}/new`.
 app:
-  price-alert-public-slug: ${APP_PRICE_ALERT_PUBLIC_SLUG:1j4jek0lmp}
+  price-alert-public-slug: ${APP_PRICE_ALERT_PUBLIC_SLUG:pioc1wm2gh}
   # true: 허용 시각 창만 접근 가능 · false: 24시간 항상 접근. ENV: APP_PRICE_ALERT_PUBLIC_TIME_RESTRICTED=false
   price-alert-public-time-restricted: ${APP_PRICE_ALERT_PUBLIC_TIME_RESTRICTED:true}
   # true: 토·일(아래 window-zone 달력) 공개 slug·돌파 로그·chartbody/log 403. 평일만 시간대 옵션 적용. /stocker 제외.
