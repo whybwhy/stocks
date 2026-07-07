@@ -56,7 +56,8 @@ public class AllowedAppUserEmailFilter extends OncePerRequestFilter {
         String path = ChartboyPublicAccess.normalizedDispatchPath(request);
         if ("/".equals(path) || "/index".equals(path) || "/health".equals(path)
                 || "/favicon.png".equals(path) || "/chartboy-logo.webp".equals(path)
-                || "/affiliate-pure-olien-peanut-butter.jpg".equals(path)) {
+                || "/affiliate-pure-olien-peanut-butter.jpg".equals(path)
+                || "/affiliate-pure-olien-peanut-butter-smooth.jpg".equals(path)) {
             return true;
         }
         if (path.startsWith("/oauth2/") || path.startsWith("/login/oauth2/")) {

@@ -36,7 +36,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/index", "/health", "/favicon.png", "/chartboy-logo.webp",
-                                "/affiliate-pure-olien-peanut-butter.jpg").permitAll()
+                                "/affiliate-pure-olien-peanut-butter.jpg", "/affiliate-pure-olien-peanut-butter-smooth.jpg").permitAll()
                         .requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").permitAll()
                         // 차트보이 공개 목록·돌파 로그: 문자열 패턴이 서블릿 경로와 어긋나면 OAuth로 튕기므로 RequestMatcher로 명시
                         .requestMatchers(chartboyPublicAccess::isPriceAlertPublicPath).permitAll()
