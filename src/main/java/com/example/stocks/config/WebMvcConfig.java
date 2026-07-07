@@ -13,7 +13,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        registry.addResourceHandler("/favicon.png", "/chartboy-logo.webp")
+        registry.addResourceHandler("/favicon.png", "/chartboy-logo.webp", "/affiliate-pure-olien-peanut-butter.jpg")
                 .addResourceLocations("classpath:/static/");
     }
 }
