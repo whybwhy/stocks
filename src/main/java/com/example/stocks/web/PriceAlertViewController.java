@@ -2,9 +2,11 @@ package com.example.stocks.web;
 
 import com.example.stocks.alert.AlertService;
 import com.example.stocks.alert.PriceAlertDto;
+import com.example.stocks.alert.PriceAlertLogDto;
 import com.example.stocks.config.AppProperties;
 import com.example.stocks.supabase.PriceAlertPageResult;
 import com.example.stocks.supabase.PriceAlertTriggerPageResult;
+import com.example.stocks.supabase.PublicReadCache;
 import com.example.stocks.supabase.SupabaseService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -55,12 +57,15 @@ public class PriceAlertViewController {
     private final SupabaseService supabaseService;
     private final AppProperties appProperties;
     private final AlertService alertService;
+    /** 공개(읽기 전용) 화면 전용 TTL 캐시. 로그인·관리 화면 조회에는 사용하지 않는다. */
+    private final PublicReadCache publicReadCache;
 
     public PriceAlertViewController(SupabaseService supabaseService, AppProperties appProperties,
-                                    AlertService alertService) {
+                                    AlertService alertService, PublicReadCache publicReadCache) {
         this.supabaseService = supabaseService;
         this.appProperties = appProperties;
         this.alertService = alertService;
+        this.publicReadCache = publicReadCache;
     }
 
     @GetMapping("/price-alerts")
@@ -167,14 +172,14 @@ public class PriceAlertViewController {
         String hyonyKey = "HYONYHYONY";
         LocalDate todaySeoul = LocalDate.now(ZoneId.of("Asia/Seoul"));
 
-        Optional<LocalDate> chartboyDay = supabaseService.getLatestPriceAlertLogSeoulDay(chartboyKey);
-        Optional<LocalDate> hyonyDay = supabaseService.getLatestPriceAlertLogSeoulDay(hyonyKey);
+        Optional<LocalDate> chartboyDay = cachedLatestLogSeoulDay(chartboyKey);
+        Optional<LocalDate> hyonyDay = cachedLatestLogSeoulDay(hyonyKey);
 
         var chartboyRows = chartboyDay
-                .map(d -> supabaseService.getPriceAlertLogsOnSeoulDay(chartboyKey, d))
+                .map(d -> cachedLogRowsOnSeoulDay(chartboyKey, d))
                 .orElse(List.of());
         var hyonyRows = hyonyDay
-                .map(d -> supabaseService.getPriceAlertLogsOnSeoulDay(hyonyKey, d))
+                .map(d -> cachedLogRowsOnSeoulDay(hyonyKey, d))
                 .orElse(List.of());
 
         String slugListHref = appProperties.publicPriceAlertListSlugHref();
@@ -258,7 +263,7 @@ public class PriceAlertViewController {
     public List<Map<String, String>> suggestChartboyPublic(@RequestParam(name = "q", required = false) String q,
                                                            HttpServletResponse response) {
         response.setHeader(HttpHeaders.CACHE_CONTROL, PUBLIC_CACHE_CONTROL);
-        return suggest(q, "CHARTBOY");
+        return suggestPublicCached(q);
     }
 
     /** 자동완성: {@code /{slug}/suggest} — {@code /{slug}} 목록 전용 · CHARTBOY 한정 */
@@ -267,7 +272,7 @@ public class PriceAlertViewController {
     public List<Map<String, String>> suggestChartboySlugRoot(@RequestParam(name = "q", required = false) String q,
                                                              HttpServletResponse response) {
         response.setHeader(HttpHeaders.CACHE_CONTROL, PUBLIC_CACHE_CONTROL);
-        return suggest(q, "CHARTBOY");
+        return suggestPublicCached(q);
     }
 
     /** 자동완성: /stocker 별칭 — CHARTBOY 한정 */
@@ -276,7 +281,7 @@ public class PriceAlertViewController {
     public List<Map<String, String>> suggestStockerPublic(@RequestParam(name = "q", required = false) String q,
                                                           HttpServletResponse response) {
         response.setHeader(HttpHeaders.CACHE_CONTROL, PUBLIC_CACHE_CONTROL);
-        return suggest(q, "CHARTBOY");
+        return suggestPublicCached(q);
     }
 
     /** 자동완성: 돌파 로그 공개 URL — 트리거 테이블 기준·CHARTBOY 한정 */
@@ -289,13 +294,38 @@ public class PriceAlertViewController {
         if (v.isEmpty()) {
             return List.of();
         }
-        return supabaseService.suggestPriceAlertTriggers(v.get(), "CHARTBOY", 10);
+        return publicReadCache.get("suggestTrig:CHARTBOY:" + v.get(),
+                appProperties.getPublicReadCacheSuggestTtlSeconds(),
+                () -> supabaseService.suggestPriceAlertTriggers(v.get(), "CHARTBOY", 10));
     }
 
     private List<Map<String, String>> suggest(String q, String source) {
         Optional<String> v = PriceAlertSearchSanitizer.validated(q);
         if (v.isEmpty()) return List.of();
         return supabaseService.suggestPriceAlerts(v.get(), source, 10);
+    }
+
+    /** 공개 자동완성 — 항상 CHARTBOY 한정이라 검색어만으로 캐시 키가 성립한다. */
+    private List<Map<String, String>> suggestPublicCached(String q) {
+        Optional<String> v = PriceAlertSearchSanitizer.validated(q);
+        if (v.isEmpty()) return List.of();
+        return publicReadCache.get("suggest:CHARTBOY:" + v.get(),
+                appProperties.getPublicReadCacheSuggestTtlSeconds(),
+                () -> supabaseService.suggestPriceAlerts(v.get(), "CHARTBOY", 10));
+    }
+
+    /** {@code /{slug}/new} 작성자별 최신 서울 적재일 (공개 전용). */
+    private Optional<LocalDate> cachedLatestLogSeoulDay(String postedBy) {
+        return publicReadCache.get("logDay:" + postedBy,
+                appProperties.getPublicReadCacheMemoTtlSeconds(),
+                () -> supabaseService.getLatestPriceAlertLogSeoulDay(postedBy));
+    }
+
+    /** {@code /{slug}/new} 해당 적재일 원장 행 (공개 전용). */
+    private List<PriceAlertLogDto> cachedLogRowsOnSeoulDay(String postedBy, LocalDate day) {
+        return publicReadCache.get("logRows:" + postedBy + ":" + day,
+                appProperties.getPublicReadCacheMemoTtlSeconds(),
+                () -> supabaseService.getPriceAlertLogsOnSeoulDay(postedBy, day));
     }
 
     @PostMapping("/admin/price-alerts/delete")
@@ -399,11 +429,11 @@ public class PriceAlertViewController {
             if (latestCreatedSeoulDay.isEmpty()) {
                 result = new PriceAlertPageResult(List.of(), 0);
             } else {
-                result = supabaseService.getPriceAlerts(safeSize, offset, "CHARTBOY", Optional.empty(),
+                result = getPriceAlertsPage(readOnly, safeSize, offset, "CHARTBOY", Optional.empty(),
                         latestCreatedSeoulDay);
             }
         } else {
-            result = supabaseService.getPriceAlerts(safeSize, offset, source, searchFilter, registeredSeoulDay);
+            result = getPriceAlertsPage(readOnly, safeSize, offset, source, searchFilter, registeredSeoulDay);
         }
 
         model.addAttribute("alerts", result.list());
@@ -438,6 +468,22 @@ public class PriceAlertViewController {
     }
 
     /**
+     * 목록 조회 — 공개(읽기 전용) 화면일 때만 {@link PublicReadCache} 를 거친다.
+     * 로그인·관리 화면({@code readOnly == false})은 등록·수정 직후 최신 값이 보여야 하므로 항상 직접 조회.
+     */
+    private PriceAlertPageResult getPriceAlertsPage(boolean readOnly, int limit, int offset, String source,
+                                                    Optional<String> searchFilter,
+                                                    Optional<LocalDate> registeredSeoulDay) {
+        if (!readOnly) {
+            return supabaseService.getPriceAlerts(limit, offset, source, searchFilter, registeredSeoulDay);
+        }
+        String key = "alerts:" + source + ":" + limit + ":" + offset
+                + ":" + searchFilter.orElse("") + ":" + registeredSeoulDay.map(LocalDate::toString).orElse("");
+        return publicReadCache.get(key, appProperties.getPublicReadCacheListTtlSeconds(),
+                () -> supabaseService.getPriceAlerts(limit, offset, source, searchFilter, registeredSeoulDay));
+    }
+
+    /**
      * 페이징·검색 링크용 쿼리 조각 ({@code &} 로 시작하는 연결).
      * 공개 목록({@code readOnly})은 API에서 항상 CHARTBOY만 조회하므로 URL에 {@code source} 를 넣지 않음.
      */
@@ -469,8 +515,13 @@ public class PriceAlertViewController {
         Optional<LocalDate> triggeredQueryDay = logAllTriggerDates ? Optional.empty()
                 : parseRegisteredDateParam(triggeredRaw).or(() -> Optional.of(todaySeoul));
 
-        PriceAlertTriggerPageResult result = supabaseService.getPriceAlertTriggers(safeSize, offset, "CHARTBOY",
-                searchFilter, triggeredQueryDay);
+        // 이 메서드는 공개 경로 /{slug}/log 에서만 호출되므로 항상 캐시를 거친다.
+        String cacheKey = "trig:" + safeSize + ":" + offset + ":" + searchFilter.orElse("")
+                + ":" + triggeredQueryDay.map(LocalDate::toString).orElse("all");
+        PriceAlertTriggerPageResult result = publicReadCache.get(cacheKey,
+                appProperties.getPublicReadCacheListTtlSeconds(),
+                () -> supabaseService.getPriceAlertTriggers(safeSize, offset, "CHARTBOY",
+                        searchFilter, triggeredQueryDay));
 
         TriggerLogMainLink backNav = resolveTriggerLogMainLink(request, Optional.ofNullable(fromQuery));
         boolean triggerLogAllDates = logAllTriggerDates;

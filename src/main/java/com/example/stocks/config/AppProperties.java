@@ -200,6 +200,53 @@ public class AppProperties {
         }
     }
 
+    /**
+     * 공개 화면({@code /{slug}}·{@code /suggest}·{@code /new}·{@code /log}) 서버 인메모리 캐시 사용 여부.
+     * {@code false} 면 요청마다 Supabase 를 직접 조회한다 (로그인·관리 화면은 원래 캐시 없음).
+     */
+    private boolean publicReadCacheEnabled = true;
+
+    /** 공개 목록·돌파 로그 조회 캐시 TTL(초). 0 이하면 캐시하지 않음. */
+    private int publicReadCacheListTtlSeconds = 60;
+
+    /** 공개 자동완성(suggest) 캐시 TTL(초). 종목 목록은 하루 단위로만 바뀌어 길게 잡는다. */
+    private int publicReadCacheSuggestTtlSeconds = 300;
+
+    /** 메모 원장 {@code /{slug}/new} 캐시 TTL(초). */
+    private int publicReadCacheMemoTtlSeconds = 120;
+
+    public boolean isPublicReadCacheEnabled() {
+        return publicReadCacheEnabled;
+    }
+
+    public void setPublicReadCacheEnabled(boolean publicReadCacheEnabled) {
+        this.publicReadCacheEnabled = publicReadCacheEnabled;
+    }
+
+    public int getPublicReadCacheListTtlSeconds() {
+        return publicReadCacheListTtlSeconds;
+    }
+
+    public void setPublicReadCacheListTtlSeconds(int publicReadCacheListTtlSeconds) {
+        this.publicReadCacheListTtlSeconds = publicReadCacheListTtlSeconds;
+    }
+
+    public int getPublicReadCacheSuggestTtlSeconds() {
+        return publicReadCacheSuggestTtlSeconds;
+    }
+
+    public void setPublicReadCacheSuggestTtlSeconds(int publicReadCacheSuggestTtlSeconds) {
+        this.publicReadCacheSuggestTtlSeconds = publicReadCacheSuggestTtlSeconds;
+    }
+
+    public int getPublicReadCacheMemoTtlSeconds() {
+        return publicReadCacheMemoTtlSeconds;
+    }
+
+    public void setPublicReadCacheMemoTtlSeconds(int publicReadCacheMemoTtlSeconds) {
+        this.publicReadCacheMemoTtlSeconds = publicReadCacheMemoTtlSeconds;
+    }
+
     public String getAllowedUserEmails() {
         return allowedUserEmails;
     }
