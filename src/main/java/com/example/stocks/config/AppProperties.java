@@ -212,8 +212,8 @@ public class AppProperties {
     /** 공개 자동완성(suggest) 캐시 TTL(초). 종목 목록은 하루 단위로만 바뀌어 길게 잡는다. */
     private int publicReadCacheSuggestTtlSeconds = 300;
 
-    /** 메모 원장 {@code /{slug}/new} 캐시 TTL(초). */
-    private int publicReadCacheMemoTtlSeconds = 120;
+    /** 메모 원장 {@code /{slug}/new} 캐시 TTL(초). 하루 1회 적재라 24시간 — 적재분 반영은 재배포로. */
+    private int publicReadCacheMemoTtlSeconds = 86400;
 
     public boolean isPublicReadCacheEnabled() {
         return publicReadCacheEnabled;

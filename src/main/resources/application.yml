@@ -67,7 +67,8 @@ app:
   public-read-cache-enabled: ${APP_PUBLIC_READ_CACHE_ENABLED:true}
   public-read-cache-list-ttl-seconds: ${APP_PUBLIC_READ_CACHE_LIST_TTL_SECONDS:60}
   public-read-cache-suggest-ttl-seconds: ${APP_PUBLIC_READ_CACHE_SUGGEST_TTL_SECONDS:300}
-  public-read-cache-memo-ttl-seconds: ${APP_PUBLIC_READ_CACHE_MEMO_TTL_SECONDS:120}
+  # /{slug}/new 원장은 하루 1회 적재이므로 24시간. 적재 후 반영하려면 재배포(캐시 비워짐) 필요.
+  public-read-cache-memo-ttl-seconds: ${APP_PUBLIC_READ_CACHE_MEMO_TTL_SECONDS:86400}
 
   allowed-kakao-accounts: ["30_윤보람", "김효진", "bk", "Yun 보라", "한승우"]
   # allowed-kakao-accounts: [ "닉네임1", "닉네임2" ]
