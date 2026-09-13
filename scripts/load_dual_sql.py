@@ -37,9 +37,10 @@ RE_ALERT = re.compile(
     r"\s*(?P<target_price>[\d.]+)\s*,\s*'(?P<condition>[^']*)'\s*,\s*'(?P<label>.*?)'\s*\)\s*,?\s*$"
 )
 # ('HYONYHYONY', 'KR', ... , DATE '2026-09-01') — price_alerts_log VALUES 한 줄
+# target_price 는 NULL 허용 (가격 미기재 종목). price_alerts 는 NOT NULL 이라 그런 행은 log 전용.
 RE_LOG = re.compile(
     r"\(\s*'(?P<posted_by>CHARTBOY|HYONYHYONY)'\s*,\s*'(?P<market>[^']*)'\s*,"
-    r"\s*'(?P<stock_code>[^']*)'\s*,\s*'(?P<symbol>[^']*)'\s*,\s*(?P<target_price>[\d.]+)\s*,"
+    r"\s*'(?P<stock_code>[^']*)'\s*,\s*'(?P<symbol>[^']*)'\s*,\s*(?P<target_price>[\d.]+|NULL)\s*,"
     r"\s*'(?P<condition>[^']*)'\s*,\s*'(?P<label>.*?)'\s*(?:,\s*DATE\s*'(?P<day>[\d-]+)')?\s*\)\s*,?\s*$"
 )
 
@@ -107,10 +108,12 @@ def parse(path):
             m = RE_LOG.match(line)
             if m:
                 d = m.groupdict()
+                tp = d["target_price"]
                 row = {
                     "posted_by": d["posted_by"], "market": d["market"],
                     "stock_code": d["stock_code"], "symbol": d["symbol"],
-                    "target_price": float(d["target_price"]), "condition": d["condition"],
+                    "target_price": None if tp == "NULL" else float(tp),
+                    "condition": d["condition"],
                     "label": d["label"].replace("''", "'"),
                 }
                 if d["day"]:
